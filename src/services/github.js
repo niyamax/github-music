@@ -5,14 +5,21 @@ import { parseISO, format, isValid, startOfWeek, addDays, subWeeks, isSameDay } 
 const API_BASE = 'https://github-contributions-api.jogruber.de/v4/';
 
 export async function fetchContributions(username) {
-    if (!username) return generateMockData();
+    if (!username) {
+        return { data: generateMockData(), error: null, isMock: true };
+    }
 
     try {
         const response = await axios.get(`${API_BASE}${username}`);
-        return normalizeData(response.data.contributions);
+        if (!response.data.contributions || response.data.contributions.length === 0) {
+            return { data: generateMockData(), error: `No contributions found for "${username}"`, isMock: true };
+        }
+        return { data: normalizeData(response.data.contributions), error: null, isMock: false };
     } catch (error) {
-        console.error("Failed to fetch GitHub data, falling back to mock:", error);
-        return generateMockData();
+        const message = error.response?.status === 404
+            ? `User "${username}" not found`
+            : 'Failed to fetch GitHub data';
+        return { data: generateMockData(), error: message, isMock: true };
     }
 }
 
@@ -35,19 +42,7 @@ function normalizeData(flatContributions) {
 
     const weeks = [];
 
-    // 3. Generate 52 weeks backwards
-    // We want the OLDEST week first (index 0) and CURRENT week last (index 51).
-    // So we loop i from 51 down to 0? Or 0 to 51.
-    // Let's generate chronological order: Week -51 to Week 0.
-
-    for (let w = 52; w >= 0; w--) {
-        // We actually want 53 columns sometimes to fill the screen? Let's stick to 52 for now.
-        // If w=0 is THIS week. w=51 is oldest.
-        // Let's reverse loop: w=51 (oldest), w=0 (current).
-        // Wait, loop from -51 to 0 is easier mentally.
-    }
-
-    // Let's just build it:
+    // 3. Generate 52 weeks backwards (oldest first, current week last)
     for (let w = 51; w >= 0; w--) {
         const weekStart = subWeeks(currentWeekStart, w);
         const days = [];

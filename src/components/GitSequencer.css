@@ -45,12 +45,122 @@ button {
     font-weight: bold;
 }
 
-button:hover {
+button:hover:not(:disabled) {
     background: #2ea043;
+}
+
+button:disabled {
+    background: #21262d;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .play-btn.active {
     background: #da3633;
+}
+
+.error-message {
+    background: rgba(218, 54, 51, 0.15);
+    border: 1px solid #da3633;
+    color: #f85149;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    width: 100%;
+    text-align: center;
+}
+
+.info-message {
+    background: rgba(56, 139, 253, 0.15);
+    border: 1px solid #388bfd;
+    color: #58a6ff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    width: 100%;
+    text-align: center;
+}
+
+.loading-state {
+    color: #8b949e;
+    padding: 2rem;
+    text-align: center;
+}
+
+select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+    color: white;
+    cursor: pointer;
+}
+
+select:hover {
+    border-color: #58a6ff;
+}
+
+.status-display {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.bpm-display {
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: #8b949e;
+    background: #161b22;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #30363d;
+}
+
+.mood-display {
+    font-size: 0.875rem;
+    color: #58a6ff;
+    font-weight: 500;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.volume-control label {
+    font-size: 0.75rem;
+    color: #8b949e;
+    text-transform: uppercase;
+}
+
+.volume-control input[type="range"] {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #30363d;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.volume-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #58a6ff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.volume-control input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: #58a6ff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
 }
 
 .graph-grid {
@@ -114,4 +224,38 @@ button:hover {
 
 .level-4 {
     background-color: #39d353;
+}
+
+.share-controls {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.export-btn {
+    background: #6e40c9;
+}
+
+.export-btn:hover:not(:disabled) {
+    background: #8957e5;
+}
+
+.export-btn.recording {
+    background: #da3633;
+    animation: pulse 1s infinite;
+}
+
+.share-btn {
+    background: #1f6feb;
+}
+
+.share-btn:hover:not(:disabled) {
+    background: #388bfd;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
