@@ -1,0 +1,117 @@
+.sequencer-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+header {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+
+input {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+    color: white;
+}
+
+/* Removed select styles */
+
+button {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: none;
+    background: #238636;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover {
+    background: #2ea043;
+}
+
+.play-btn.active {
+    background: #da3633;
+}
+
+.graph-grid {
+    display: flex;
+    gap: 3px;
+    padding: 1rem;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.week-col {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    transition: opacity 0.1s;
+}
+
+/* Reduced column highlight since cells glow now */
+.week-col.active {
+    /* Subtle highlight for the column */
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.day-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background-color: #161b22;
+    /* Level 0 */
+    border: 1px solid transparent;
+    /* Prevent layout shift when playing */
+    transition: background-color 0.1s, border-color 0.1s, box-shadow 0.1s;
+}
+
+/* Note Playing Animation */
+/* Note Playing Animation */
+.day-cell.playing {
+    background-color: #ffffff !important;
+    /* Flash White */
+    border-color: #ffffff;
+    opacity: 1;
+    z-index: 10;
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.level-1 {
+    background-color: #0e4429;
+}
+
+.level-2 {
+    background-color: #006d32;
+}
+
+.level-3 {
+    background-color: #26a641;
+}
+
+.level-4 {
+    background-color: #39d353;
+}
