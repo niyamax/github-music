@@ -66,6 +66,17 @@ const GitSequencer = () => {
     // State for animation (separate from actual loading)
     const [isAnimating, setIsAnimating] = useState(false);
 
+    // State for toast notification
+    const [showToast, setShowToast] = useState(false);
+
+    // Auto-hide toast
+    useEffect(() => {
+        if (showToast) {
+            const timer = setTimeout(() => setShowToast(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [showToast]);
+
     const loadData = async (user) => {
         setIsLoading(true);
         setIsAnimating(true);
@@ -259,31 +270,24 @@ const GitSequencer = () => {
         }
     };
 
-    // Generate shareable URL
-    const handleShare = async () => {
+    // URL to clipboard
+    const handleShare = () => {
         const shareUrl = `${window.location.origin}${window.location.pathname}?user=${encodeURIComponent(username)}`;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Git Music - ${username}`,
-                    text: `Listen to ${username}'s GitHub contributions as music!`,
-                    url: shareUrl
-                });
-            } catch (err) {
-                // User cancelled or error - fall back to clipboard
-                copyToClipboard(shareUrl);
-            }
-        } else {
-            copyToClipboard(shareUrl);
-        }
-    };
-
-    const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text).then(() => {
-            alert('Link copied to clipboard!');
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            setShowToast(true);
         }).catch(() => {
-            prompt('Copy this link:', text);
+            // Fallback
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = shareUrl;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                setShowToast(true);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
         });
     };
 
@@ -326,6 +330,11 @@ const GitSequencer = () => {
 
     return (
         <div className="terminal-window">
+            {/* Toast Notification */}
+            <div className={`toast-notification ${showToast ? 'show' : ''}`}>
+                Link copied to clipboard
+            </div>
+
             {/* Simple Header */}
             <div className="header-box">
                 <div className="header-title">
@@ -426,8 +435,13 @@ const GitSequencer = () => {
                     className="ctrl-btn"
                     onClick={handleShare}
                     disabled={!data || isAnimating || error}
+                    title="Copy link to clipboard"
                 >
-                    ↗ Share
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'text-bottom' }}>
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Copy
                 </button>
             </div>
 
