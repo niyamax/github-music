@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, memo, useRef } from 'react';
+import * as Tone from 'tone';
 import { fetchContributions } from '../services/github';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useSequencer } from '../hooks/useSequencer';
@@ -33,6 +34,9 @@ const GitSequencer = () => {
     const [isMock, setIsMock] = useState(false);
     const [volume, setVolume] = useState(75);
     const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = useRef(null);
+    const chunksRef = useRef([]);
+    const canvasRef = useRef(null);
 
     // Custom hooks for audio
     const audioEngine = useAudioEngine(username, volume);
@@ -80,27 +84,161 @@ const GitSequencer = () => {
         toggle(data);
     }, [toggle, data]);
 
-    // Export audio recording
+    // Draw to hidden canvas for video export
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !data) return;
+
+        const ctx = canvas.getContext('2d');
+        const CELL_SIZE = 12;
+        const GAP = 3;
+        const PADDING = 20;
+
+        // Reset canvas size if needed (once or on resize)
+        const gridWidth = PADDING * 2 + data.weeks.length * (CELL_SIZE + GAP);
+        const gridHeight = PADDING * 2 + 7 * (CELL_SIZE + GAP);
+
+        // Enforce 9:16 Aspect Ratio (Vertical/Social Media)
+        let canvasWidth = gridWidth;
+        let canvasHeight = gridHeight;
+
+        // Since grid is wide, we typically need to increase height to match 9:16
+        // Target ratio = 9/16 = 0.5625
+        if (gridWidth / gridHeight > 9 / 16) {
+            // Width is the constraint. Calculate height.
+            canvasHeight = gridWidth * (16 / 9);
+        } else {
+            // Height is the constraint (unlikely for git graph). Calculate width.
+            canvasWidth = gridHeight * (9 / 16);
+        }
+
+        // Center grid in canvas
+        const offsetX = (canvasWidth - gridWidth) / 2;
+        const offsetY = (canvasHeight - gridHeight) / 2;
+
+        if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+        if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
+
+        // Background
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        // Draw Grid
+        data.weeks.forEach((week, wIndex) => {
+            const x = offsetX + PADDING + wIndex * (CELL_SIZE + GAP);
+
+            // Draw Column Highlight
+            if (activeCol === wIndex) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(x - 1, offsetY + PADDING - 1, CELL_SIZE + GAP, 7 * (CELL_SIZE + GAP));
+            }
+
+            week.days.forEach((day, dIndex) => {
+                const y = offsetY + PADDING + dIndex * (CELL_SIZE + GAP);
+
+                // Determine Color
+                let color = '#161b22'; // Level 0
+                if (day.level === 1) color = '#0e4429';
+                if (day.level === 2) color = '#006d32';
+                if (day.level === 3) color = '#26a641';
+                if (day.level === 4) color = '#39d353';
+
+                // Playing Highlight (Flash White)
+                if (activeCol === wIndex && activeNotes.includes(dIndex)) {
+                    color = '#ffffff';
+                    // Optional: Add glow effect
+                    ctx.shadowColor = 'white';
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.fillStyle = color;
+
+                // Draw rounded rect (simplified to rect for perf)
+                ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            });
+        });
+
+    }, [data, activeCol, activeNotes]);
+
+    // Export VIDEO recording (Universal Canvas Capture)
     const handleExport = async () => {
         if (isRecording) {
-            // Stop recording and download
-            const recording = await audioEngine.stopRecording();
-            if (recording) {
-                const url = URL.createObjectURL(recording);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `git-music-${username}.webm`;
-                a.click();
-                URL.revokeObjectURL(url);
+            // STOP RECORDING
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                mediaRecorderRef.current.stop();
             }
             setIsRecording(false);
+            if (isPlaying) stop();
         } else {
-            // Start recording
-            await audioEngine.startRecording();
-            setIsRecording(true);
-            // Auto-start playback when recording
-            if (!isPlaying && data) {
-                toggle(data);
+            // START RECORDING
+            try {
+                // 1. Get Canvas Stream (30 FPS)
+                const canvas = canvasRef.current;
+                const canvasStream = canvas.captureStream(30);
+
+                // 2. Get Tone.js Audio Stream
+                const audioDest = Tone.context.createMediaStreamDestination();
+                Tone.getDestination().connect(audioDest);
+                await Tone.start();
+                const toneStream = audioDest.stream;
+
+                // 3. Merge Streams
+                const tracks = [
+                    ...canvasStream.getVideoTracks(),
+                    ...toneStream.getAudioTracks()
+                ];
+                const combinedStream = new MediaStream(tracks);
+
+                // 4. Setup Recorder
+                // Try to find supported mime type (Prioritize MP4)
+                let mimeType = 'video/mp4; codecs=h264,aac';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/mp4';
+                }
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm; codecs=vp9';
+                }
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm';
+                }
+
+                const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 2500000 }); // 2.5Mbps
+                mediaRecorderRef.current = recorder;
+                chunksRef.current = [];
+
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunksRef.current.push(e.data);
+                };
+
+                recorder.onstop = () => {
+                    const blob = new Blob(chunksRef.current, { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+
+                    // Determine extension
+                    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `git-music-${username}.${ext}`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+
+                // Start
+                recorder.start();
+                setIsRecording(true);
+
+                // Auto-start playback
+                if (!isPlaying && data) {
+                    toggle(data);
+                }
+
+            } catch (err) {
+                console.error("Recording failed:", err);
+                setIsRecording(false);
+                alert("Recording failed. Your browser might not support this feature.");
             }
         }
     };
@@ -192,31 +330,6 @@ const GitSequencer = () => {
                     >
                         {isPlaying ? 'STOP' : 'PLAY'}
                     </button>
-
-                    <select value={autoScale ? 'auto' : scaleType} onChange={handleScaleChange}>
-                        <option value="auto">Auto Scale</option>
-                        <option value="pentatonic">Pentatonic (Zen)</option>
-                        <option value="lydian">Lydian (Dreamy)</option>
-                        <option value="dorian">Dorian (Focus)</option>
-                        <option value="phrygianDom">Phrygian Dom (Intense)</option>
-                    </select>
-
-                    <div className="volume-control">
-                        <label htmlFor="volume">Vol</label>
-                        <input
-                            id="volume"
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={volume}
-                            onChange={(e) => setVolume(Number(e.target.value))}
-                        />
-                    </div>
-
-                    <div className="status-display">
-                        <span className="bpm-display">{bpm} BPM</span>
-                        {isPlaying && <span className="mood-display">{currentPattern}</span>}
-                    </div>
                 </div>
 
                 <div className="share-controls">
@@ -224,8 +337,9 @@ const GitSequencer = () => {
                         className={`export-btn ${isRecording ? 'recording' : ''}`}
                         onClick={handleExport}
                         disabled={isLoading || !data}
+                        title="Record Video"
                     >
-                        {isRecording ? '⏹ Stop & Save' : '⏺ Record'}
+                        {isRecording ? '⏹ Stop' : '⏺ Record'}
                     </button>
                     <button
                         className="share-btn"
@@ -252,6 +366,11 @@ const GitSequencer = () => {
                     ))}
                 </div>
             ) : null}
+            {/* Hidden Canvas for Video Recording */}
+            <canvas
+                ref={canvasRef}
+                style={{ position: 'fixed', top: '-10000px', left: '-10000px', pointerEvents: 'none' }}
+            />
         </div>
     );
 };

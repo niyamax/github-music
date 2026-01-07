@@ -23,3 +23,9 @@ body {
   padding: 2rem;
   text-align: center;
 }
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 1rem 0.5rem;
+  }
+}
