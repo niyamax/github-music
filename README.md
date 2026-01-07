@@ -34,7 +34,7 @@ Git Music takes a GitHub username, fetches the contribution history for the last
 - **React** (Vite)
 - **Tone.js** for audio synthesis
 - **Axios** for data fetching
-- **GitLab/GitHub Contribution API** (via [github-contributions-api](https://github.com/grubersjoe/github-contributions-api))
+- **GitHub Contribution API** (via [github-contributions-api](https://github.com/grubersjoe/github-contributions-api))
 
 ## Development
 
