@@ -14,8 +14,8 @@ const DayCell = memo(({ day, isPlaying }) => (
 ));
 
 // Memoized week column
-const WeekCol = memo(({ week, weekIndex, isActive, activeNotes }) => (
-    <div className={`week-col ${isActive ? 'active' : ''}`}>
+const WeekCol = memo(({ week, weekIndex, isActive, activeNotes, style }) => (
+    <div className={`week-col ${isActive ? 'active' : ''}`} style={style}>
         {week.days.map((day, dIndex) => (
             <DayCell
                 key={dIndex}
@@ -27,7 +27,7 @@ const WeekCol = memo(({ week, weekIndex, isActive, activeNotes }) => (
 ));
 
 const GitSequencer = () => {
-    const [username, setUsername] = useState('torvalds');
+    const [username, setUsername] = useState('');
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -37,6 +37,7 @@ const GitSequencer = () => {
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const canvasRef = useRef(null);
+    const inputRef = useRef(null);
 
     // Custom hooks for audio
     const audioEngine = useAudioEngine(username, volume);
@@ -55,19 +56,34 @@ const GitSequencer = () => {
         changeScale
     } = sequencer;
 
-    // Load contribution data
+    // Focus input on mount
     useEffect(() => {
-        loadData(username);
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
     }, []);
+
+    // State for animation (separate from actual loading)
+    const [isAnimating, setIsAnimating] = useState(false);
 
     const loadData = async (user) => {
         setIsLoading(true);
+        setIsAnimating(true);
         setError(null);
+
+        // Start animation timer (3 waves x 2s = 6 seconds)
+        const animationTimer = new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Fetch data
         const result = await fetchContributions(user);
         setData(result.data);
         setError(result.error);
         setIsMock(result.isMock);
         setIsLoading(false);
+
+        // Wait for animation to complete
+        await animationTimer;
+        setIsAnimating(false);
     };
 
     const handleSearch = (e) => {
@@ -119,8 +135,8 @@ const GitSequencer = () => {
         if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
         if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
 
-        // Background
-        ctx.fillStyle = '#0d1117';
+        // Background - Dark LCD Style
+        ctx.fillStyle = '#1a1a1a';
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
         // Draw Grid
@@ -129,19 +145,19 @@ const GitSequencer = () => {
 
             // Draw Column Highlight
             if (activeCol === wIndex) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
                 ctx.fillRect(x - 1, offsetY + PADDING - 1, CELL_SIZE + GAP, 7 * (CELL_SIZE + GAP));
             }
 
             week.days.forEach((day, dIndex) => {
                 const y = offsetY + PADDING + dIndex * (CELL_SIZE + GAP);
 
-                // Determine Color
-                let color = '#161b22'; // Level 0
-                if (day.level === 1) color = '#0e4429';
-                if (day.level === 2) color = '#006d32';
-                if (day.level === 3) color = '#26a641';
-                if (day.level === 4) color = '#39d353';
+                // Determine Color - Green tones on dark (matching new CSS)
+                let color = '#222'; // Level 0 - Dark
+                if (day.level === 1) color = '#1a4a1a';
+                if (day.level === 2) color = '#2a6a2a';
+                if (day.level === 3) color = '#3a8a3a';
+                if (day.level === 4) color = '#4aba4a';
 
                 // Playing Highlight (Flash White)
                 if (activeCol === wIndex && activeNotes.includes(dIndex)) {
@@ -284,89 +300,146 @@ const GitSequencer = () => {
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
-                e.preventDefault();
-                handleTogglePlay();
+            // Skip if typing in input
+            if (e.target.tagName === 'INPUT') return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    handleTogglePlay();
+                    break;
+                case 'KeyR':
+                    if (data) handleExport();
+                    break;
+                case 'KeyS':
+                    if (data) handleShare();
+                    break;
+                case 'Escape':
+                    if (isPlaying) stop();
+                    if (isRecording) handleExport();
+                    break;
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleTogglePlay]);
+    }, [handleTogglePlay, data, isPlaying, isRecording, stop, handleExport, handleShare]);
 
     return (
-        <div className="sequencer-container">
-            <header>
-                <h1>Git Music 🎵</h1>
-                <form onSubmit={handleSearch}>
+        <div className="terminal-window">
+            {/* Simple Header */}
+            <div className="header-box">
+                <div className="header-title">
+                    <span className="header-line">───</span>
+                    <span className="header-text">Git Music</span>
+                    <span className="header-version">v1.0.0</span>
+                    <span className="header-line">────────────────────</span>
+                </div>
+                <div className="header-subtitle">
+                    Turn your GitHub contributions into music
+                </div>
+            </div>
+
+            {/* Command Input */}
+            <div className="command-section">
+                <form onSubmit={handleSearch} className="command-line">
+                    <span className="prompt">$</span>
+                    <span className="cmd">git-music fetch</span>
                     <input
+                        ref={inputRef}
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        placeholder="GitHub Username"
+                        placeholder="username"
                         disabled={isLoading}
+                        autoComplete="off"
+                        spellCheck="false"
                     />
-                    <button type="submit" disabled={isLoading}>
-                        {isLoading ? 'Loading...' : 'Load'}
-                    </button>
                 </form>
 
-                {error && (
-                    <div className="error-message">
-                        {error} — Playing random demo data instead.
+                {/* Status Message - always reserve space */}
+                <div className="status-msg">
+                    {isAnimating ? (
+                        <span className="dim">Loading...</span>
+                    ) : error ? (
+                        <span className="error">✗ {error}</span>
+                    ) : data && !isMock ? (
+                        <span className="success">✓ loaded {data.weeks.length} weeks</span>
+                    ) : (
+                        <span className="dim">Enter a GitHub username to load data ↑</span>
+                    )}
+                </div>
+            </div>
+
+            {/* Contribution Graph */}
+            <div className="graph-section">
+                {data && !isAnimating && !error ? (
+                    <div className="graph-grid">
+                        {data.weeks.map((week, wIndex) => (
+                            <WeekCol
+                                key={wIndex}
+                                week={week}
+                                weekIndex={wIndex}
+                                isActive={activeCol === wIndex}
+                                activeNotes={activeCol === wIndex ? activeNotes : []}
+                                style={{ '--col-index': wIndex }}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className={`graph-grid empty ${isAnimating ? 'loading' : ''} ${error && !isAnimating ? 'error' : ''}`}>
+                        {/* Empty 52x7 grid placeholder */}
+                        {Array.from({ length: 52 }).map((_, wIndex) => (
+                            <div
+                                key={wIndex}
+                                className="week-col"
+                            >
+                                {Array.from({ length: 7 }).map((_, dIndex) => (
+                                    <div
+                                        key={dIndex}
+                                        className="day-cell"
+                                        style={{ '--cell-index': wIndex + dIndex * 2 }}
+                                    />
+                                ))}
+                            </div>
+                        ))}
                     </div>
                 )}
+            </div>
 
-                {!error && isMock && (
-                    <div className="info-message">
-                        Playing demo data. Enter a GitHub username to load real contributions.
-                    </div>
-                )}
+            {/* Controls */}
+            <div className="controls-row">
+                <button
+                    className={`ctrl-btn ${isPlaying ? 'active' : ''}`}
+                    onClick={handleTogglePlay}
+                    disabled={!data || isAnimating || error}
+                >
+                    {isPlaying ? '■ Stop' : '▶ Play'}
+                </button>
+                <button
+                    className={`ctrl-btn ${isRecording ? 'recording' : ''}`}
+                    onClick={handleExport}
+                    disabled={!data || isAnimating || error}
+                >
+                    {isRecording ? '● Stop' : '○ Record'}
+                </button>
+                <button
+                    className="ctrl-btn"
+                    onClick={handleShare}
+                    disabled={!data || isAnimating || error}
+                >
+                    ↗ Share
+                </button>
+            </div>
 
-                <div className="controls">
-                    <button
-                        className={`play-btn ${isPlaying ? 'active' : ''}`}
-                        onClick={handleTogglePlay}
-                        disabled={isLoading || !data}
-                    >
-                        {isPlaying ? 'STOP' : 'PLAY'}
-                    </button>
-                </div>
+            {/* Footer hint */}
+            <div className="footer-hint">
+                {data && !isAnimating && !error
+                    ? 'Space: play · R: record · S: share · Esc: stop'
+                    : '\u00A0'
+                }
+            </div>
 
-                <div className="share-controls">
-                    <button
-                        className={`export-btn ${isRecording ? 'recording' : ''}`}
-                        onClick={handleExport}
-                        disabled={isLoading || !data}
-                        title="Record Video"
-                    >
-                        {isRecording ? '⏹ Stop' : '⏺ Record'}
-                    </button>
-                    <button
-                        className="share-btn"
-                        onClick={handleShare}
-                        disabled={isLoading || !data}
-                    >
-                        🔗 Share
-                    </button>
-                </div>
-            </header>
-
-            {isLoading && !data ? (
-                <div className="loading-state">Loading contribution graph...</div>
-            ) : data ? (
-                <div className="graph-grid">
-                    {data.weeks.map((week, wIndex) => (
-                        <WeekCol
-                            key={wIndex}
-                            week={week}
-                            weekIndex={wIndex}
-                            isActive={activeCol === wIndex}
-                            activeNotes={activeCol === wIndex ? activeNotes : []}
-                        />
-                    ))}
-                </div>
-            ) : null}
-            {/* Hidden Canvas for Video Recording */}
+            {/* Hidden Canvas */}
             <canvas
                 ref={canvasRef}
                 style={{ position: 'fixed', top: '-10000px', left: '-10000px', pointerEvents: 'none' }}

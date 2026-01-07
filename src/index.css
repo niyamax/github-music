@@ -1,16 +1,37 @@
+/* ===== GIT MUSIC - HYBRID TERMINAL STYLE ===== */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 :root {
-  --bg-color: #0d1117;
-  --text-color: #c9d1d9;
-  --grid-color: #161b22;
-  --highlight: #58a6ff;
+  --bg: #0d0d0d;
+  --border: #f23400;
+  --text: #aaaaaa;
+  --text-dim: #555555;
+  --text-bright: #ffffff;
+  --accent: #f23400;
+  --accent-cyan: #66cccc;
+  --accent-yellow: #dcdcaa;
+  --success: #4ec9b0;
+  --error: #cc5533;
+  --level-0: #1a1a1a;
+  --level-1: #0e4429;
+  --level-2: #006d32;
+  --level-3: #26a641;
+  --level-4: #39d353;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: 0;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  padding: 1rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -19,13 +40,5 @@ body {
 
 .app-container {
   width: 100%;
-  max-width: 1200px;
-  padding: 2rem;
-  text-align: center;
-}
-
-@media (max-width: 768px) {
-  .app-container {
-    padding: 1rem 0.5rem;
-  }
+  max-width: 650px;
 }
