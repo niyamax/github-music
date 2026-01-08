@@ -386,7 +386,7 @@ const GitSequencer = () => {
         ctx.fillStyle = colors.textDim;
         ctx.font = `${13 * scale}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText('gitmusic.niyasv.com', canvasWidth / 2, canvasHeight - 40 * scale);
+        ctx.fillText(`gitmusic.niyasv.com`, canvasWidth / 2, canvasHeight - 40 * scale);
 
     }, [data, activeCol, activeNotes, username]);
 
@@ -473,7 +473,7 @@ const GitSequencer = () => {
 
     // URL to clipboard
     const handleShare = () => {
-        const shareUrl = `${window.location.origin}${window.location.pathname}?user=${encodeURIComponent(username)}`;
+        const shareUrl = `${window.location.origin}/${encodeURIComponent(username)}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             setShowToast(true);
         }).catch(() => {
@@ -504,8 +504,13 @@ const GitSequencer = () => {
 
     // Load user from URL on mount
     useEffect(() => {
+        // Support both /username and ?user=username formats
+        const pathname = window.location.pathname;
+        const pathUser = pathname.split('/').filter(Boolean).pop();
         const params = new URLSearchParams(window.location.search);
-        const userParam = params.get('user');
+        const queryUser = params.get('user');
+
+        const userParam = pathUser || queryUser;
         if (userParam) {
             setUsername(userParam);
             loadData(userParam);
