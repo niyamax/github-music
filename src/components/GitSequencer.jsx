@@ -166,7 +166,6 @@ const GitSequencer = () => {
         const scale = 3;
         const CELL_SIZE = 10 * scale;
         const GAP = 3 * scale;
-        const PADDING = 8 * scale; // 0.5rem on mobile
 
         // Full HD portrait (1080x1920)
         const canvasWidth = 1080;
@@ -175,29 +174,41 @@ const GitSequencer = () => {
         if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
         if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
 
-        // Exact mobile CSS spacing (base 16px, scaled 3x)
-        // .header-fieldset: padding 0.75rem 1rem, margin-bottom 1rem
-        // .header-content: gap 1rem
-        // .command-section: margin-bottom 1.5rem
-        // .status-msg: margin-top 0.5rem
-        // .graph-section: margin-bottom 2rem
+        // Mobile CSS layout (consistent spacing throughout)
+        // All content uses same horizontal padding from canvas edge
+        const contentPadding = 16 * scale;  // 1rem - consistent for all elements
+        const contentWidth = canvasWidth - contentPadding * 2;
 
+        // Fieldset internal padding (matches mobile .header-fieldset padding)
         const fieldsetPaddingX = 16 * scale;  // 1rem
-        const fieldsetPaddingY = 12 * scale;  // 0.75rem
-        const fieldsetMarginBottom = 16 * scale;  // 1rem
-        const headerContentGap = 16 * scale;  // 1rem
+        const fieldsetPaddingY = 16 * scale;  // 0.75rem -> increased for breathing room
+
+        // Vertical spacing (matches mobile CSS)
+        const headerContentGap = 16 * scale;  // 1rem gap between ASCII and subtitle
+        const fieldsetMarginBottom = 32 * scale;  // spacing after header
         const statusMarginTop = 8 * scale;  // 0.5rem
-        const graphMarginTop = 24 * scale;  // 1.5rem (command-section margin-bottom)
+        const graphMarginTop = 24 * scale;  // 1.5rem
+
+        // Font sizes
+        const asciiFontSize = 9 * scale;
+        const subtitleFontSize = 14 * scale;
+        const commandFontSize = 15 * scale;
+        const statusFontSize = 14 * scale;
+        const legendTitleSize = 16 * scale;
+        const legendVersionSize = 12 * scale;
 
         // Calculate fieldset content height
-        const asciiHeight = 4 * 9 * scale;  // 4 lines at ~9px each
-        const subtitleHeight = 14 * scale;
+        const asciiLineHeight = asciiFontSize * 1.2;
+        const asciiHeight = 4 * asciiLineHeight;
+        const subtitleLineHeight = subtitleFontSize * 1.3;
+        const subtitleLines = 2;  // "Turn your GitHub contributions" + "into music"
+        const subtitleHeight = subtitleLines * subtitleLineHeight;
         const fieldsetContentHeight = asciiHeight + headerContentGap + subtitleHeight;
         const fieldsetHeight = fieldsetPaddingY * 2 + fieldsetContentHeight;
 
         // Calculate total content height for vertical centering
-        const commandLineHeight = 15 * scale;
-        const statusLineHeight = 14 * scale;
+        const commandLineHeight = commandFontSize;
+        const statusLineHeight = statusFontSize;
         const gridHeight = 7 * (CELL_SIZE + GAP);
 
         const totalContentHeight =
@@ -219,33 +230,54 @@ const GitSequencer = () => {
         let currentY = offsetY;
 
         // ===== FIELDSET HEADER =====
-        const fieldsetWidth = canvasWidth - PADDING * 2;
+        const fieldsetX = contentPadding;
+        const fieldsetWidth = contentWidth;
 
         // Fieldset border
         ctx.strokeStyle = colors.accent;
         ctx.lineWidth = scale;
         ctx.beginPath();
-        ctx.roundRect(PADDING, currentY, fieldsetWidth, fieldsetHeight, 4 * scale);
+        ctx.roundRect(fieldsetX, currentY, fieldsetWidth, fieldsetHeight, 4 * scale);
         ctx.stroke();
 
-        // Legend background
+        // Measure legend text widths dynamically
+        const titleFont = `bold ${legendTitleSize}px monospace`;
+        const versionFont = `${legendVersionSize}px monospace`;
+        ctx.font = titleFont;
+        const titleText = 'GitHub Music';
+        const titleWidth = ctx.measureText(titleText).width;
+        ctx.font = versionFont;
+        const versionText = 'v1.0.0';
+        const versionWidth = ctx.measureText(versionText).width;
+        const legendGap = 8 * scale;
+        const legendPaddingH = 8 * scale;
+        const totalLegendWidth = titleWidth + legendGap + versionWidth + legendPaddingH * 2;
+
+        // Legend position (inside fieldset border, with margin from left edge)
+        const legendX = fieldsetX + fieldsetPaddingX;
+        const legendY = currentY - legendVersionSize / 2;
+
+        // Legend background (covers border)
         ctx.fillStyle = colors.bg;
-        ctx.fillRect(PADDING + 8 * scale, currentY - 8 * scale, 145 * scale, 16 * scale);
+        ctx.fillRect(legendX - legendPaddingH, legendY - legendVersionSize / 2, totalLegendWidth, legendTitleSize + 4 * scale);
 
         // Legend text: "GitHub Music v1.0.0"
         ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
         ctx.fillStyle = colors.accent;
-        ctx.font = `bold ${16 * scale}px monospace`;  // 1rem on mobile
-        ctx.fillText('GitHub Music', PADDING + 12 * scale, currentY + 4 * scale);
+        ctx.font = titleFont;
+        ctx.fillText(titleText, legendX, currentY);
         ctx.fillStyle = colors.textDim;
-        ctx.font = `${12 * scale}px monospace`;
-        ctx.fillText('v1.0.0', PADDING + 130 * scale, currentY + 4 * scale);
+        ctx.font = versionFont;
+        ctx.fillText(versionText, legendX + titleWidth + legendGap, currentY);
+        ctx.textBaseline = 'alphabetic';
 
-        // ASCII art (centered in fieldset) - font-size: 0.55rem = ~9px
-        const asciiStartY = currentY + fieldsetPaddingY + 10 * scale;
+        // ASCII art (centered within fieldset content area)
+        const fieldsetContentTop = currentY + fieldsetPaddingY;
         ctx.fillStyle = colors.accent;
-        ctx.font = `${9 * scale}px monospace`;
+        ctx.font = `${asciiFontSize}px monospace`;
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
         ctx.globalAlpha = 0.8;
         const asciiLines = [
             '   ♫       ♪',
@@ -253,45 +285,52 @@ const GitSequencer = () => {
             ' █ █ █ █ █ █',
             ' ▀ ▀ ▀ ▀ ▀ ▀'
         ];
+        const fieldsetCenterX = fieldsetX + fieldsetWidth / 2;
         asciiLines.forEach((line, i) => {
-            ctx.fillText(line, canvasWidth / 2, asciiStartY + i * 9 * scale);
+            ctx.fillText(line, fieldsetCenterX, fieldsetContentTop + i * asciiLineHeight);
         });
         ctx.globalAlpha = 1;
 
-        // Subtitle (centered) - font-size: 0.85rem = ~14px
-        const subtitleY = asciiStartY + asciiHeight + headerContentGap;
+        // Subtitle (centered within fieldset, wrapped to two lines)
+        const subtitleY = fieldsetContentTop + asciiHeight + headerContentGap;
         ctx.fillStyle = colors.accent;
-        ctx.font = `bold ${14 * scale}px monospace`;
+        ctx.font = `bold ${subtitleFontSize}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText('Turn your GitHub contributions into music', canvasWidth / 2, subtitleY);
+        ctx.textBaseline = 'top';
+        ctx.fillText('Turn your GitHub contributions', fieldsetCenterX, subtitleY);
+        ctx.fillText('into music', fieldsetCenterX, subtitleY + subtitleLineHeight);
+        ctx.textBaseline = 'alphabetic';
 
         currentY += fieldsetHeight + fieldsetMarginBottom;
 
-        // ===== COMMAND LINE (left-aligned) - font-size: 15px =====
+        // ===== COMMAND LINE (left-aligned with content padding) =====
         ctx.textAlign = 'left';
         ctx.fillStyle = colors.accentCyan;
-        ctx.font = `${15 * scale}px monospace`;
-        ctx.fillText('$', PADDING + fieldsetPaddingX, currentY);
+        ctx.font = `${commandFontSize}px monospace`;
+        const cmdX = contentPadding;
+        ctx.fillText('$', cmdX, currentY);
 
         ctx.fillStyle = colors.accentYellow;
-        ctx.fillText('git-music fetch', PADDING + fieldsetPaddingX + 18 * scale, currentY);
+        const promptWidth = ctx.measureText('$ ').width;
+        ctx.fillText('git-music fetch', cmdX + promptWidth, currentY);
 
         ctx.fillStyle = colors.textBright;
-        ctx.fillText(username, PADDING + fieldsetPaddingX + 170 * scale, currentY);
+        const cmdWidth = ctx.measureText('git-music fetch ').width;
+        ctx.fillText(username, cmdX + promptWidth + cmdWidth, currentY);
 
         currentY += commandLineHeight + statusMarginTop;
 
-        // ===== STATUS MESSAGE (left-aligned) - font-size: 14px, margin-top: 0.5rem =====
+        // ===== STATUS MESSAGE (left-aligned with content padding) =====
         ctx.fillStyle = colors.success;
-        ctx.font = `${14 * scale}px monospace`;
+        ctx.font = `${statusFontSize}px monospace`;
         ctx.textAlign = 'left';
-        ctx.fillText(`✓ loaded ${data.weeks.length} weeks`, PADDING + fieldsetPaddingX, currentY);
+        ctx.fillText(`✓ loaded ${data.weeks.length} weeks`, contentPadding, currentY);
 
         currentY += statusLineHeight + graphMarginTop;
 
-        // ===== CONTRIBUTION GRID WITH SCROLL =====
+        // ===== CONTRIBUTION GRID =====
         const gridTotalWidth = data.weeks.length * (CELL_SIZE + GAP);
-        const visibleWidth = canvasWidth - (PADDING + fieldsetPaddingX) * 2;
+        const visibleWidth = contentWidth;
 
         // Calculate scroll offset to center active column
         let scrollOffset = 0;
@@ -304,15 +343,15 @@ const GitSequencer = () => {
         // Clip region for grid
         ctx.save();
         ctx.beginPath();
-        ctx.rect(PADDING + fieldsetPaddingX, currentY, visibleWidth, gridHeight + 5 * scale);
+        ctx.rect(contentPadding, currentY, visibleWidth, gridHeight + 5 * scale);
         ctx.clip();
 
         // Draw Grid with scroll offset
         data.weeks.forEach((week, wIndex) => {
-            const x = PADDING + fieldsetPaddingX + wIndex * (CELL_SIZE + GAP) - scrollOffset;
+            const x = contentPadding + wIndex * (CELL_SIZE + GAP) - scrollOffset;
 
             // Skip if outside visible area
-            if (x + CELL_SIZE < PADDING + fieldsetPaddingX || x > canvasWidth - PADDING - fieldsetPaddingX) return;
+            if (x + CELL_SIZE < contentPadding || x > canvasWidth - contentPadding) return;
 
             week.days.forEach((day, dIndex) => {
                 const y = currentY + dIndex * (CELL_SIZE + GAP);
@@ -453,6 +492,16 @@ const GitSequencer = () => {
         });
     };
 
+    // Screenshot export for testing layout
+    const handleScreenshot = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const link = document.createElement('a');
+        link.download = `git-music-preview-${username || 'test'}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+
     // Load user from URL on mount
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -480,6 +529,9 @@ const GitSequencer = () => {
                 case 'KeyS':
                     if (data) handleShare();
                     break;
+                case 'KeyP':
+                    if (data) handleScreenshot();
+                    break;
                 case 'Escape':
                     if (isPlaying) stop();
                     if (isRecording) handleExport();
@@ -488,7 +540,7 @@ const GitSequencer = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleTogglePlay, data, isPlaying, isRecording, stop, handleExport, handleShare]);
+    }, [handleTogglePlay, data, isPlaying, isRecording, stop, handleExport, handleShare, handleScreenshot]);
 
     return (
         <div className="terminal-window">
