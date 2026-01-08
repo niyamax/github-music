@@ -658,14 +658,44 @@ const GitSequencer = () => {
                     onClick={handleTogglePlay}
                     disabled={!data || isAnimating || error || isRecording}
                 >
-                    {isPlaying && !isRecording ? '■ Stop' : '▶ Play'}
+                    {isPlaying && !isRecording ? (
+                        <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                            <span>Stop</span>
+                        </>
+                    ) : (
+                        <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <span>Play</span>
+                        </>
+                    )}
                 </button>
                 <button
                     className={`ctrl-btn ${isRecording ? 'recording' : ''}`}
                     onClick={handleExport}
                     disabled={!data || isAnimating || error}
                 >
-                    {isRecording ? '● Stop' : '○ Record'}
+                    {isRecording ? (
+                        <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="8"></circle>
+                                <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                            </svg>
+                            <span>Stop</span>
+                        </>
+                    ) : (
+                        <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="8"></circle>
+                            </svg>
+                            <span>Record</span>
+                        </>
+                    )}
                 </button>
                 <button
                     className="ctrl-btn"
@@ -673,11 +703,11 @@ const GitSequencer = () => {
                     disabled={!data || isAnimating || error}
                     title="Copy link to clipboard"
                 >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px', verticalAlign: 'text-bottom' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
-                    Copy
+                    <span>Copy</span>
                 </button>
             </div>
 

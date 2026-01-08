@@ -322,6 +322,10 @@
     cursor: pointer;
     border-radius: 4px;
     transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
 }
 
 .ctrl-btn:hover:not(:disabled) {
