@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, memo, useRef, forwardRef } from 'react';
 import * as Tone from 'tone';
 import { fetchContributions } from '../services/github';
 import { useAudioEngine } from '../hooks/useAudioEngine';
@@ -13,9 +13,9 @@ const DayCell = memo(({ day, isPlaying }) => (
     />
 ));
 
-// Memoized week column
-const WeekCol = memo(({ week, weekIndex, isActive, activeNotes, style }) => (
-    <div className={`week-col ${isActive ? 'active' : ''}`} style={style}>
+// Memoized week column with forwardRef to allow scrolling to it
+const WeekCol = memo(forwardRef(({ week, weekIndex, isActive, activeNotes, style }, ref) => (
+    <div ref={ref} className={`week-col ${isActive ? 'active' : ''}`} style={style}>
         {week.days.map((day, dIndex) => (
             <DayCell
                 key={dIndex}
@@ -24,7 +24,7 @@ const WeekCol = memo(({ week, weekIndex, isActive, activeNotes, style }) => (
             />
         ))}
     </div>
-));
+)));
 
 const GitSequencer = () => {
     const [username, setUsername] = useState('');
@@ -107,87 +107,249 @@ const GitSequencer = () => {
         changeScale(e.target.value);
     };
 
+    // Auto-scroll graph
+    const graphSectionRef = useRef(null);
+    const activeWeekRef = useRef(null);
+
+    useEffect(() => {
+        if (activeCol !== null && activeWeekRef.current && graphSectionRef.current) {
+            // Check if user is on mobile/overflowing
+            const section = graphSectionRef.current;
+            if (section.scrollWidth > section.clientWidth) {
+                // Scroll strictly to center active element
+                const sectionRect = section.getBoundingClientRect();
+                const activeRect = activeWeekRef.current.getBoundingClientRect();
+
+                const relativeLeft = activeRect.left - sectionRect.left;
+                const scrollLeft = section.scrollLeft;
+
+                // Desired position: center of container
+                const targetLeft = scrollLeft + relativeLeft - (section.clientWidth / 2) + (activeRect.width / 2);
+
+                section.scrollTo({
+                    left: targetLeft,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }, [activeCol]);
+
     const handleTogglePlay = useCallback(() => {
         toggle(data);
     }, [toggle, data]);
 
-    // Draw to hidden canvas for video export
+    // Draw to hidden canvas for video export (exact mobile layout, HQ 1080x1920)
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || !data) return;
 
         const ctx = canvas.getContext('2d');
-        const CELL_SIZE = 12;
-        const GAP = 3;
-        const PADDING = 20;
 
-        // Reset canvas size if needed (once or on resize)
-        const gridWidth = PADDING * 2 + data.weeks.length * (CELL_SIZE + GAP);
-        const gridHeight = PADDING * 2 + 7 * (CELL_SIZE + GAP);
+        // Colors from CSS variables (exact match)
+        const colors = {
+            bg: '#0d0d0d',
+            accent: '#f23400',
+            text: '#aaaaaa',
+            textDim: '#555555',
+            textBright: '#ffffff',
+            accentCyan: '#66cccc',
+            accentYellow: '#dcdcaa',
+            success: '#4ec9b0',
+            level0: '#1a1a1a',
+            level1: '#0e4429',
+            level2: '#006d32',
+            level3: '#26a641',
+            level4: '#39d353',
+        };
 
-        // Enforce 9:16 Aspect Ratio (Vertical/Social Media)
-        let canvasWidth = gridWidth;
-        let canvasHeight = gridHeight;
+        // HQ resolution (3x scale for 1080p)
+        const scale = 3;
+        const CELL_SIZE = 10 * scale;
+        const GAP = 3 * scale;
+        const PADDING = 8 * scale; // 0.5rem on mobile
 
-        // Since grid is wide, we typically need to increase height to match 9:16
-        // Target ratio = 9/16 = 0.5625
-        if (gridWidth / gridHeight > 9 / 16) {
-            // Width is the constraint. Calculate height.
-            canvasHeight = gridWidth * (16 / 9);
-        } else {
-            // Height is the constraint (unlikely for git graph). Calculate width.
-            canvasWidth = gridHeight * (9 / 16);
-        }
-
-        // Center grid in canvas
-        const offsetX = (canvasWidth - gridWidth) / 2;
-        const offsetY = (canvasHeight - gridHeight) / 2;
+        // Full HD portrait (1080x1920)
+        const canvasWidth = 1080;
+        const canvasHeight = 1920;
 
         if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
         if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
 
-        // Background - Dark LCD Style
-        ctx.fillStyle = '#1a1a1a';
+        // Exact mobile CSS spacing (base 16px, scaled 3x)
+        // .header-fieldset: padding 0.75rem 1rem, margin-bottom 1rem
+        // .header-content: gap 1rem
+        // .command-section: margin-bottom 1.5rem
+        // .status-msg: margin-top 0.5rem
+        // .graph-section: margin-bottom 2rem
+
+        const fieldsetPaddingX = 16 * scale;  // 1rem
+        const fieldsetPaddingY = 12 * scale;  // 0.75rem
+        const fieldsetMarginBottom = 16 * scale;  // 1rem
+        const headerContentGap = 16 * scale;  // 1rem
+        const statusMarginTop = 8 * scale;  // 0.5rem
+        const graphMarginTop = 24 * scale;  // 1.5rem (command-section margin-bottom)
+
+        // Calculate fieldset content height
+        const asciiHeight = 4 * 9 * scale;  // 4 lines at ~9px each
+        const subtitleHeight = 14 * scale;
+        const fieldsetContentHeight = asciiHeight + headerContentGap + subtitleHeight;
+        const fieldsetHeight = fieldsetPaddingY * 2 + fieldsetContentHeight;
+
+        // Calculate total content height for vertical centering
+        const commandLineHeight = 15 * scale;
+        const statusLineHeight = 14 * scale;
+        const gridHeight = 7 * (CELL_SIZE + GAP);
+
+        const totalContentHeight =
+            fieldsetHeight +
+            fieldsetMarginBottom +
+            commandLineHeight +
+            statusMarginTop +
+            statusLineHeight +
+            graphMarginTop +
+            gridHeight;
+
+        // Vertical offset to center content
+        const offsetY = (canvasHeight - totalContentHeight) / 2;
+
+        // Background
+        ctx.fillStyle = colors.bg;
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        // Draw Grid
-        data.weeks.forEach((week, wIndex) => {
-            const x = offsetX + PADDING + wIndex * (CELL_SIZE + GAP);
+        let currentY = offsetY;
 
-            // Draw Column Highlight
-            if (activeCol === wIndex) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-                ctx.fillRect(x - 1, offsetY + PADDING - 1, CELL_SIZE + GAP, 7 * (CELL_SIZE + GAP));
-            }
+        // ===== FIELDSET HEADER =====
+        const fieldsetWidth = canvasWidth - PADDING * 2;
+
+        // Fieldset border
+        ctx.strokeStyle = colors.accent;
+        ctx.lineWidth = scale;
+        ctx.beginPath();
+        ctx.roundRect(PADDING, currentY, fieldsetWidth, fieldsetHeight, 4 * scale);
+        ctx.stroke();
+
+        // Legend background
+        ctx.fillStyle = colors.bg;
+        ctx.fillRect(PADDING + 8 * scale, currentY - 8 * scale, 145 * scale, 16 * scale);
+
+        // Legend text: "GitHub Music v1.0.0"
+        ctx.textAlign = 'left';
+        ctx.fillStyle = colors.accent;
+        ctx.font = `bold ${16 * scale}px monospace`;  // 1rem on mobile
+        ctx.fillText('GitHub Music', PADDING + 12 * scale, currentY + 4 * scale);
+        ctx.fillStyle = colors.textDim;
+        ctx.font = `${12 * scale}px monospace`;
+        ctx.fillText('v1.0.0', PADDING + 130 * scale, currentY + 4 * scale);
+
+        // ASCII art (centered in fieldset) - font-size: 0.55rem = ~9px
+        const asciiStartY = currentY + fieldsetPaddingY + 10 * scale;
+        ctx.fillStyle = colors.accent;
+        ctx.font = `${9 * scale}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.8;
+        const asciiLines = [
+            '   ♫       ♪',
+            ' ▄ █ ▄ █ ▄ █',
+            ' █ █ █ █ █ █',
+            ' ▀ ▀ ▀ ▀ ▀ ▀'
+        ];
+        asciiLines.forEach((line, i) => {
+            ctx.fillText(line, canvasWidth / 2, asciiStartY + i * 9 * scale);
+        });
+        ctx.globalAlpha = 1;
+
+        // Subtitle (centered) - font-size: 0.85rem = ~14px
+        const subtitleY = asciiStartY + asciiHeight + headerContentGap;
+        ctx.fillStyle = colors.accent;
+        ctx.font = `bold ${14 * scale}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Turn your GitHub contributions into music', canvasWidth / 2, subtitleY);
+
+        currentY += fieldsetHeight + fieldsetMarginBottom;
+
+        // ===== COMMAND LINE (left-aligned) - font-size: 15px =====
+        ctx.textAlign = 'left';
+        ctx.fillStyle = colors.accentCyan;
+        ctx.font = `${15 * scale}px monospace`;
+        ctx.fillText('$', PADDING + fieldsetPaddingX, currentY);
+
+        ctx.fillStyle = colors.accentYellow;
+        ctx.fillText('git-music fetch', PADDING + fieldsetPaddingX + 18 * scale, currentY);
+
+        ctx.fillStyle = colors.textBright;
+        ctx.fillText(username, PADDING + fieldsetPaddingX + 170 * scale, currentY);
+
+        currentY += commandLineHeight + statusMarginTop;
+
+        // ===== STATUS MESSAGE (left-aligned) - font-size: 14px, margin-top: 0.5rem =====
+        ctx.fillStyle = colors.success;
+        ctx.font = `${14 * scale}px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`✓ loaded ${data.weeks.length} weeks`, PADDING + fieldsetPaddingX, currentY);
+
+        currentY += statusLineHeight + graphMarginTop;
+
+        // ===== CONTRIBUTION GRID WITH SCROLL =====
+        const gridTotalWidth = data.weeks.length * (CELL_SIZE + GAP);
+        const visibleWidth = canvasWidth - (PADDING + fieldsetPaddingX) * 2;
+
+        // Calculate scroll offset to center active column
+        let scrollOffset = 0;
+        if (activeCol !== null && gridTotalWidth > visibleWidth) {
+            const activeX = activeCol * (CELL_SIZE + GAP);
+            const centerOffset = visibleWidth / 2 - CELL_SIZE / 2;
+            scrollOffset = Math.max(0, Math.min(activeX - centerOffset, gridTotalWidth - visibleWidth));
+        }
+
+        // Clip region for grid
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(PADDING + fieldsetPaddingX, currentY, visibleWidth, gridHeight + 5 * scale);
+        ctx.clip();
+
+        // Draw Grid with scroll offset
+        data.weeks.forEach((week, wIndex) => {
+            const x = PADDING + fieldsetPaddingX + wIndex * (CELL_SIZE + GAP) - scrollOffset;
+
+            // Skip if outside visible area
+            if (x + CELL_SIZE < PADDING + fieldsetPaddingX || x > canvasWidth - PADDING - fieldsetPaddingX) return;
 
             week.days.forEach((day, dIndex) => {
-                const y = offsetY + PADDING + dIndex * (CELL_SIZE + GAP);
+                const y = currentY + dIndex * (CELL_SIZE + GAP);
 
-                // Determine Color - Green tones on dark (matching new CSS)
-                let color = '#222'; // Level 0 - Dark
-                if (day.level === 1) color = '#1a4a1a';
-                if (day.level === 2) color = '#2a6a2a';
-                if (day.level === 3) color = '#3a8a3a';
-                if (day.level === 4) color = '#4aba4a';
+                // Determine Color
+                let color = colors.level0;
+                if (day.level === 1) color = colors.level1;
+                if (day.level === 2) color = colors.level2;
+                if (day.level === 3) color = colors.level3;
+                if (day.level === 4) color = colors.level4;
 
-                // Playing Highlight (Flash White)
+                // Playing Highlight
                 if (activeCol === wIndex && activeNotes.includes(dIndex)) {
-                    color = '#ffffff';
-                    // Optional: Add glow effect
-                    ctx.shadowColor = 'white';
-                    ctx.shadowBlur = 10;
+                    color = colors.textBright;
+                    ctx.shadowColor = colors.textBright;
+                    ctx.shadowBlur = 12 * scale;
                 } else {
                     ctx.shadowBlur = 0;
                 }
 
                 ctx.fillStyle = color;
-
-                // Draw rounded rect (simplified to rect for perf)
-                ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                ctx.beginPath();
+                ctx.roundRect(x, y, CELL_SIZE, CELL_SIZE, 2 * scale);
+                ctx.fill();
             });
         });
 
-    }, [data, activeCol, activeNotes]);
+        ctx.restore();
+        ctx.shadowBlur = 0;
+
+        // ===== FOOTER WITH PRODUCTION LINK =====
+        ctx.fillStyle = colors.textDim;
+        ctx.font = `${13 * scale}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('github-music.pages.dev', canvasWidth / 2, canvasHeight - 40 * scale);
+
+    }, [data, activeCol, activeNotes, username]);
 
     // Export VIDEO recording (Universal Canvas Capture)
     const handleExport = async () => {
@@ -197,7 +359,7 @@ const GitSequencer = () => {
                 mediaRecorderRef.current.stop();
             }
             setIsRecording(false);
-            if (isPlaying) stop();
+            stop(); // Always stop playback when recording ends
         } else {
             // START RECORDING
             try {
@@ -231,7 +393,7 @@ const GitSequencer = () => {
                     mimeType = 'video/webm';
                 }
 
-                const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 2500000 }); // 2.5Mbps
+                const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 8000000 }); // 8Mbps for HQ
                 mediaRecorderRef.current = recorder;
                 chunksRef.current = [];
 
@@ -257,7 +419,7 @@ const GitSequencer = () => {
                 recorder.start();
                 setIsRecording(true);
 
-                // Auto-start playback
+                // Start playback for recording (audio will be captured)
                 if (!isPlaying && data) {
                     toggle(data);
                 }
@@ -336,17 +498,29 @@ const GitSequencer = () => {
             </div>
 
             {/* Simple Header */}
-            <div className="header-box">
-                <div className="header-title">
-                    <span className="header-line">───</span>
-                    <span className="header-text">Git Music</span>
-                    <span className="header-version">v1.0.0</span>
-                    <span className="header-line">────────────────────</span>
+            {/* Simple Fieldset Header */}
+            <fieldset className="header-fieldset">
+                <legend className="header-legend">
+                    <span className="header-title">GitHub Music</span> <span className="header-version">v1.0.0</span>
+                </legend>
+
+                <div className="header-content">
+                    <div className="header-left">
+                        <pre className="header-ascii">{`   ♫       ♪
+ ▄ █ ▄ █ ▄ █
+ █ █ █ █ █ █
+ ▀ ▀ ▀ ▀ ▀ ▀`}</pre>
+                    </div>
+
+                    <div className="header-divider"></div>
+
+                    <div className="header-right">
+                        <div className="header-section">
+                            <div className="header-label">Turn your GitHub contributions into music</div>
+                        </div>
+                    </div>
                 </div>
-                <div className="header-subtitle">
-                    Turn your GitHub contributions into music
-                </div>
-            </div>
+            </fieldset>
 
             {/* Command Input */}
             <div className="command-section">
@@ -358,10 +532,19 @@ const GitSequencer = () => {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
+                        onBlur={() => {
+                            if (username && username.length >= 2 && !isLoading) {
+                                if (isPlaying) stop();
+                                loadData(username);
+                            }
+                        }}
                         placeholder="username"
                         disabled={isLoading}
                         autoComplete="off"
                         spellCheck="false"
+                        autoFocus
+                        inputMode="text"
+                        autoCapitalize="none"
                     />
                 </form>
 
@@ -380,12 +563,13 @@ const GitSequencer = () => {
             </div>
 
             {/* Contribution Graph */}
-            <div className="graph-section">
+            <div className="graph-section" ref={graphSectionRef}>
                 {data && !isAnimating && !error ? (
                     <div className="graph-grid">
                         {data.weeks.map((week, wIndex) => (
                             <WeekCol
                                 key={wIndex}
+                                ref={activeCol === wIndex ? activeWeekRef : null}
                                 week={week}
                                 weekIndex={wIndex}
                                 isActive={activeCol === wIndex}
@@ -418,11 +602,11 @@ const GitSequencer = () => {
             {/* Controls */}
             <div className="controls-row">
                 <button
-                    className={`ctrl-btn ${isPlaying ? 'active' : ''}`}
+                    className={`ctrl-btn ${isPlaying && !isRecording ? 'active' : ''}`}
                     onClick={handleTogglePlay}
-                    disabled={!data || isAnimating || error}
+                    disabled={!data || isAnimating || error || isRecording}
                 >
-                    {isPlaying ? '■ Stop' : '▶ Play'}
+                    {isPlaying && !isRecording ? '■ Stop' : '▶ Play'}
                 </button>
                 <button
                     className={`ctrl-btn ${isRecording ? 'recording' : ''}`}
