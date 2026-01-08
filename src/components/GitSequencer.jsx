@@ -386,7 +386,7 @@ const GitSequencer = () => {
         ctx.fillStyle = colors.textDim;
         ctx.font = `${13 * scale}px monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText('github-music.pages.dev', canvasWidth / 2, canvasHeight - 40 * scale);
+        ctx.fillText('gitmusic.niyasv.com', canvasWidth / 2, canvasHeight - 40 * scale);
 
     }, [data, activeCol, activeNotes, username]);
 
