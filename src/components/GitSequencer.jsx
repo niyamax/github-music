@@ -40,6 +40,7 @@ const GitSequencer = () => {
     const inputRef = useRef(null);
     const measureRef = useRef(null);
     const [cursorPos, setCursorPos] = useState(0);
+    const [showCursor, setShowCursor] = useState(true);
 
     // Custom hooks for audio
     const audioEngine = useAudioEngine(username, volume);
@@ -603,22 +604,31 @@ const GitSequencer = () => {
                     <span className="cmd">git-music fetch</span>
                     <div className="input-wrapper">
                         <span ref={measureRef} className="input-measure" aria-hidden="true" />
-                        <span
-                            className="terminal-cursor"
-                            style={{ left: `calc(0.5rem + ${getCursorOffset()}px)` }}
-                        />
+                        {showCursor && (
+                            <span
+                                className="terminal-cursor"
+                                style={{ left: `calc(0.5rem + ${getCursorOffset()}px)` }}
+                            />
+                        )}
                         <input
                             ref={inputRef}
                             type="text"
                             value={username}
                             onChange={(e) => {
                                 setUsername(e.target.value);
+                                setShowCursor(true);
                                 setTimeout(updateCursorPos, 0);
                             }}
                             onKeyUp={updateCursorPos}
                             onMouseUp={updateCursorPos}
                             onSelect={updateCursorPos}
+                            onFocus={() => setShowCursor(true)}
                             onBlur={() => {
+                                // Hide cursor only if there's content
+                                if (username) {
+                                    setShowCursor(false);
+                                }
+                                // Trigger load on blur
                                 if (username && username.length >= 2 && !isLoading) {
                                     if (isPlaying) stop();
                                     loadData(username);

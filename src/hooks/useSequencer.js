@@ -158,7 +158,13 @@ export function useSequencer(audioEngine) {
     // Stop playback
     const stop = useCallback(() => {
         Tone.Transport.stop();
-        if (sequenceRef.current) sequenceRef.current.stop();
+        Tone.Transport.cancel(); // Clear all scheduled events
+        Tone.Transport.position = 0; // Reset position
+        if (sequenceRef.current) {
+            sequenceRef.current.stop();
+            sequenceRef.current.dispose();
+            sequenceRef.current = null;
+        }
         setIsPlaying(false);
         setActiveCol(-1);
         setActiveNotes([]);
