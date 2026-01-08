@@ -479,8 +479,7 @@
     }
 
     .footer-hint {
-        text-align: center;
-        font-size: 13px;
+        display: none;
     }
 
     .toast-notification {
