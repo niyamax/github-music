@@ -1,7 +1,9 @@
 /* ===== TERMINAL WINDOW ===== */
 .terminal-window {
     width: 100%;
+    max-width: 100%;
     min-height: 300px;
+    overflow-x: hidden;
 }
 
 /* ===== HEADER BOX ===== */
@@ -11,6 +13,8 @@
     border-radius: 4px;
     margin: 0 0 1.5rem 0;
     padding: 0.5rem 1.5rem 1rem;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .header-legend {
@@ -157,6 +161,8 @@
 /* ===== COMMAND SECTION ===== */
 .command-section {
     margin-bottom: 1.5rem;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .command-line {
@@ -172,6 +178,48 @@
 
 .command-line .cmd {
     color: var(--accent-yellow);
+    white-space: nowrap;
+}
+
+.input-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+}
+
+/* Hidden span for measuring text width */
+.input-measure {
+    position: absolute;
+    visibility: hidden;
+    white-space: pre;
+    font-family: inherit;
+    font-size: inherit;
+    padding-left: 0;
+}
+
+/* Custom terminal block cursor */
+.terminal-cursor {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.55em;
+    height: 1.2em;
+    background: var(--success);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: left 0.05s ease-out;
+}
+
+/* Show and blink cursor when input is focused */
+.input-wrapper:focus-within .terminal-cursor {
+    opacity: 0.85;
+    animation: blink-cursor 1s step-end infinite;
+}
+
+@keyframes blink-cursor {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0; }
 }
 
 .command-line input {
@@ -182,13 +230,12 @@
     font-family: inherit;
     font-size: inherit;
     outline: none;
-    caret-color: var(--success);
-    padding: 0.25rem;
+    caret-color: transparent;
+    padding: 0.25rem 0.5rem;
 }
 
 .command-line input::placeholder {
     color: var(--text-dim);
-    font-style: italic;
 }
 
 /* Status Messages */
@@ -215,6 +262,7 @@
 .graph-section {
     margin-bottom: 2rem;
     scroll-behavior: smooth;
+    max-width: 100%;
 }
 
 .graph-grid {
@@ -395,11 +443,6 @@
 
 /* ===== MOBILE ===== */
 @media (max-width: 600px) {
-    body {
-        padding: 0.5rem;
-        font-size: 15px;
-    }
-
     .terminal-window {
         width: 100%;
         min-height: auto;
@@ -419,9 +462,9 @@
     /* Graph scrolling for mobile only */
     .graph-section {
         overflow-x: auto;
+        max-width: 100%;
         scrollbar-width: thin;
         scrollbar-color: var(--accent) var(--bg);
-        -webkit-overflow-scrolling: touch;
     }
 
     .graph-section::-webkit-scrollbar {
@@ -467,8 +510,12 @@
         flex-wrap: nowrap;
     }
 
-    .command-line input {
+    .input-wrapper {
         flex: 1;
+        min-width: 0;
+    }
+
+    .command-line input {
         min-width: 0;
     }
 

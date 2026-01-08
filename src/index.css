@@ -41,4 +41,31 @@ body {
 .app-container {
   width: 100%;
   max-width: 650px;
+  overflow-x: hidden;
+}
+
+/* Mobile overflow fix */
+@media (max-width: 600px) {
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-x: hidden;
+    padding: 0.75rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .app-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
 }

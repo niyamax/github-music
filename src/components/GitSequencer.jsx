@@ -38,6 +38,8 @@ const GitSequencer = () => {
     const chunksRef = useRef([]);
     const canvasRef = useRef(null);
     const inputRef = useRef(null);
+    const measureRef = useRef(null);
+    const [cursorPos, setCursorPos] = useState(0);
 
     // Custom hooks for audio
     const audioEngine = useAudioEngine(username, volume);
@@ -547,6 +549,21 @@ const GitSequencer = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleTogglePlay, data, isPlaying, isRecording, stop, handleExport, handleShare, handleScreenshot]);
 
+    // Update cursor position
+    const updateCursorPos = useCallback(() => {
+        if (inputRef.current) {
+            setCursorPos(inputRef.current.selectionStart || 0);
+        }
+    }, []);
+
+    // Calculate cursor offset using measurement span
+    const getCursorOffset = () => {
+        if (!measureRef.current || !inputRef.current) return 0;
+        const textBeforeCursor = username.slice(0, cursorPos);
+        measureRef.current.textContent = textBeforeCursor || '';
+        return measureRef.current.offsetWidth;
+    };
+
     return (
         <div className="terminal-window">
             {/* Toast Notification */}
@@ -584,25 +601,38 @@ const GitSequencer = () => {
                 <form onSubmit={handleSearch} className="command-line">
                     <span className="prompt">$</span>
                     <span className="cmd">git-music fetch</span>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        onBlur={() => {
-                            if (username && username.length >= 2 && !isLoading) {
-                                if (isPlaying) stop();
-                                loadData(username);
-                            }
-                        }}
-                        placeholder="username"
-                        disabled={isLoading}
-                        autoComplete="off"
-                        spellCheck="false"
-                        autoFocus
-                        inputMode="text"
-                        autoCapitalize="none"
-                    />
+                    <div className="input-wrapper">
+                        <span ref={measureRef} className="input-measure" aria-hidden="true" />
+                        <span
+                            className="terminal-cursor"
+                            style={{ left: `calc(0.5rem + ${getCursorOffset()}px)` }}
+                        />
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={username}
+                            onChange={(e) => {
+                                setUsername(e.target.value);
+                                setTimeout(updateCursorPos, 0);
+                            }}
+                            onKeyUp={updateCursorPos}
+                            onMouseUp={updateCursorPos}
+                            onSelect={updateCursorPos}
+                            onBlur={() => {
+                                if (username && username.length >= 2 && !isLoading) {
+                                    if (isPlaying) stop();
+                                    loadData(username);
+                                }
+                            }}
+                            placeholder="username"
+                            disabled={isLoading}
+                            autoComplete="off"
+                            spellCheck="false"
+                            autoFocus
+                            inputMode="text"
+                            autoCapitalize="none"
+                        />
+                    </div>
                 </form>
 
                 {/* Status Message - always reserve space */}
@@ -637,7 +667,7 @@ const GitSequencer = () => {
                     </div>
                 ) : (
                     <div className={`graph-grid empty ${isAnimating ? 'loading' : ''} ${error && !isAnimating ? 'error' : ''}`}>
-                        {/* Empty 52x7 grid placeholder */}
+                        {/* Empty 52x7 grid placeholder - always rendered to reserve space */}
                         {Array.from({ length: 52 }).map((_, wIndex) => (
                             <div
                                 key={wIndex}
