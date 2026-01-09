@@ -476,7 +476,7 @@ const GitSequencer = () => {
 
     // URL to clipboard
     const handleShare = () => {
-        const shareUrl = `${window.location.origin}?user=${encodeURIComponent(username)}`;
+        const shareUrl = `${window.location.origin}/${encodeURIComponent(username)}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             setShowToast(true);
         }).catch(() => {
