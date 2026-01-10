@@ -102,24 +102,31 @@ export function useSequencer(audioEngine) {
             }
 
             // --- MELODY LOGIC ---
-            let weekDensity = 0;
-            week.days.forEach(d => weekDensity += d.level);
+            const activeDays = week.days
+                .map((d, i) => ({ day: d, index: i }))
+                .filter(item => item.day.level > 0);
 
-            // Only sample if extremely dense (prevent "wall of sound" while keeping most notes)
-            if (weekDensity > 25) {
-                // Busy week: random sampling
-                const activeDays = week.days
-                    .map((d, i) => ({ day: d, index: i }))
-                    .filter(item => item.day.level > 0);
+            if (activeDays.length > 0) {
+                let selectedNotes = [];
+                const roll = Math.random();
 
-                // Shuffle
-                for (let i = activeDays.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [activeDays[i], activeDays[j]] = [activeDays[j], activeDays[i]];
+                // 40% chance: Single Note (Melodic)
+                // 40% chance: Sparse Chord (2-3 notes)
+                // 20% chance: Cluster (up to 4 notes)
+
+                if (roll < 0.4) {
+                    // Pick one random note for a clear melody line
+                    const randomIdx = Math.floor(Math.random() * activeDays.length);
+                    selectedNotes = [activeDays[randomIdx]];
+                } else if (roll < 0.8) {
+                    // Pick 2-3 random notes for a sparse chord
+                    const shuffled = [...activeDays].sort(() => 0.5 - Math.random());
+                    selectedNotes = shuffled.slice(0, 2 + Math.floor(Math.random() * 2));
+                } else {
+                    // Play up to 4 notes for a richer texture, but avoid full 7-note chords
+                    const shuffled = [...activeDays].sort(() => 0.5 - Math.random());
+                    selectedNotes = shuffled.slice(0, 4);
                 }
-
-                const noteCount = 1 + Math.floor(Math.random() * 3);
-                const selectedNotes = activeDays.slice(0, noteCount);
 
                 selectedNotes.forEach(({ day, index }) => {
                     playNote(scaleTypeRef.current, index, day.level, time);
@@ -128,20 +135,6 @@ export function useSequencer(audioEngine) {
                 Tone.Draw.schedule(() => {
                     setActiveCol(colIndex);
                     setActiveNotes(selectedNotes.map(n => n.index));
-                }, time);
-            } else {
-                // Chill week: play all active notes
-                const playingIndices = [];
-                week.days.forEach((day, dayIndex) => {
-                    if (day.level > 0) {
-                        playingIndices.push(dayIndex);
-                        playNote(scaleTypeRef.current, dayIndex, day.level, time);
-                    }
-                });
-
-                Tone.Draw.schedule(() => {
-                    setActiveCol(colIndex);
-                    setActiveNotes(playingIndices);
                 }, time);
             }
         }, cols, "8n").start("0:0:0");
@@ -159,14 +152,17 @@ export function useSequencer(audioEngine) {
 
     // Stop playback
     const stop = useCallback(() => {
-        Tone.Transport.stop();
-        Tone.Transport.cancel(); // Clear all scheduled events
-        Tone.Transport.position = "0:0:0"; // Reset position safely
+        // Stop sequence first to avoid referencing halted transport time
         if (sequenceRef.current) {
             sequenceRef.current.stop();
             sequenceRef.current.dispose();
             sequenceRef.current = null;
         }
+
+        Tone.Transport.stop();
+        Tone.Transport.cancel(); // Clear all scheduled events
+        Tone.Transport.position = "0:0:0"; // Reset position safely
+
         setIsPlaying(false);
         setActiveCol(-1);
         setActiveNotes([]);

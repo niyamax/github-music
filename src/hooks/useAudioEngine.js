@@ -15,94 +15,157 @@ const CHORD_ROOTS = {
     phrygianDom: ['C3', 'Db3', 'E3', 'F3', 'G3', 'Ab3', 'Bb3']
 };
 
-const VELOCITIES = [0, 0.3, 0.5, 0.8, 1.0];
+const VELOCITIES = [0, 0.5, 0.6, 0.7, 0.8];
 
-// Deterministic hash for synth oscillator type based on username
+// Default volumes if not provided
+const DEFAULT_VOLUMES = { melody: -10, pad: -20, drum: -8, metal: -14 };
+
+// Palette of soothing sounds
+const SOOTHING_TYPES = ['fmsine', 'fattriangle', 'fmtriangle', 'pulse'];
+
+// Fallback hash for initial load
 export const getSignatureOscillator = (username) => {
     let hash = 0;
     for (let i = 0; i < username.length; i++) {
         hash = username.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const oscTypes = ['triangle', 'sawtooth', 'square', 'sine'];
-    return oscTypes[Math.abs(hash) % oscTypes.length];
+    return SOOTHING_TYPES[Math.abs(hash) % SOOTHING_TYPES.length];
 };
 
-export function useAudioEngine(username, volume) {
+export function useAudioEngine(username, volumes = DEFAULT_VOLUMES, data = null) {
     const gainRef = useRef(null);
     const limiterRef = useRef(null);
+    const filterRef = useRef(null); // Low-pass filter for soothing tone
+    const padFilterRef = useRef(null); // Dedicated filter for pads
     const synthRef = useRef(null);
     const padSynthRef = useRef(null);
     const drumSynthRef = useRef(null);
     const metalSynthRef = useRef(null);
     const recorderRef = useRef(null);
+    const pianoReverbRef = useRef(null); // Reverb for Lead/Piano
+    const padReverbRef = useRef(null);   // Massive Reverb for Pads
 
     // Initialize audio engine
     useEffect(() => {
-        // Master Gain for volume control
-        gainRef.current = new Tone.Gain(volume / 100).toDestination();
+        // Master Gain (Fixed at 0dB, individual tracks controlled separately)
+        gainRef.current = new Tone.Gain(1).toDestination();
 
-        // Recorder for export functionality
+        // Recorder
         recorderRef.current = new Tone.Recorder();
 
-        // Master Limiter to prevent clipping
+        // Master Limiter
         limiterRef.current = new Tone.Limiter(-3);
         limiterRef.current.connect(gainRef.current);
         limiterRef.current.connect(recorderRef.current);
 
-        // Signature Synth (Oscillator depends on Username)
-        const oscType = getSignatureOscillator(username);
+        // 1. Piano Reverb (Clean but spacious)
+        pianoReverbRef.current = new Tone.Reverb({
+            decay: 12,
+            preDelay: 0.01,
+            wet: 0.7
+        }).toDestination();
+        pianoReverbRef.current.connect(limiterRef.current);
 
-        // Lead Synth
+        // 2. Pad Reverb (Deep, atmospheric wash)
+        padReverbRef.current = new Tone.Reverb({
+            decay: 10,       // Huge decay
+            preDelay: 0.5,  // Slow onset
+            wet: 0.8       // 100% Wet (pure atmosphere)
+        }).toDestination();
+        padReverbRef.current.connect(limiterRef.current);
+
+        // Low-Pass Filter (Connects to Piano Reverb)
+        filterRef.current = new Tone.Filter(2500, "lowpass", -12);
+        filterRef.current.connect(pianoReverbRef.current);
+
+        // Determine Oscillator Type (Ambient Palette)
+        // If data exists, choose based on activity. Else, fallback to username hash.
+        let oscType = getSignatureOscillator(username);
+
+        if (data && data.weeks) {
+            let totalContribs = 0;
+            data.weeks.forEach(w => w.days.forEach(d => totalContribs += d.count));
+
+            // // Map intensity to sound texture - AMBIENT EDITION
+            // if (totalContribs < 500) oscType = 'fmsine';        // Electric Piano
+            // else if (totalContribs < 1500) oscType = 'fmsine';    // Soft Flute
+            // else if (totalContribs < 3000) oscType = 'fmsine'; // Warm Pad-like Lead
+            // else oscType = 'fmsine';                                // Richer tone for high energy
+        }
+
+        // Lead Synth (Piano/Pluck Vibe) -> Piano Reverb
         synthRef.current = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: oscType },
-            envelope: { attack: 0.05, decay: 0.1, sustain: 0.3, release: 1 }
-        }).connect(limiterRef.current);
-        synthRef.current.volume.value = -6;
+            oscillator: { type: 'fmsine' },
+            envelope: {
+                attack: 0.02,  // Faster attack (piano-like)
+                decay: 1,
+                sustain: 0.2,
+                release: 2     // Long release tail
+            }
+        }).connect(pianoReverbRef.current);
+        synthRef.current.volume.value = volumes.melody ?? DEFAULT_VOLUMES.melody;
 
-        // Pad Synth
+        // Pad Synth (Deep Background) -> Pad Reverb
+        // 1. Create a LowPass filter to cut the buzz
+        padFilterRef.current = new Tone.Filter(800, "lowpass");
+        padFilterRef.current.connect(padReverbRef.current);
+
         padSynthRef.current = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: 'sine' },
-            envelope: { attack: 0.5, decay: 0.5, sustain: 0.8, release: 2 }
-        }).connect(limiterRef.current);
-        padSynthRef.current.volume.value = -12;
+            oscillator: { type: "sawtooth" },
+            envelope: {
+                attack: 2,
+                decay: 0.1,
+                sustain: 1,
+                release: 4
+            }
+        }).connect(padFilterRef.current);
+        padSynthRef.current.volume.value = volumes.pad ?? DEFAULT_VOLUMES.pad;
 
-        // Drum Synth (Kick & Snare)
+        // Drum Synth (Kick & Snare) - Very Soft / Lo-fi
         drumSynthRef.current = new Tone.MembraneSynth({
             pitchDecay: 0.05,
-            octaves: 10,
+            octaves: 4,
             oscillator: { type: "sine" },
-            envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
-        }).connect(limiterRef.current);
-        drumSynthRef.current.volume.value = -6;
+            envelope: { attack: 0.01, decay: 0.4, sustain: 0.01, release: 1.4 }
+        }).connect(limiterRef.current); // Drums skip reverb to stay punchy (or maybe light reverb?)
+        drumSynthRef.current.volume.value = volumes.drum ?? DEFAULT_VOLUMES.drum;
 
-        // Metal Synth (HiHats)
+        // Metal Synth (HiHats) - Shaker Vibe
         metalSynthRef.current = new Tone.MetalSynth({
             frequency: 200,
-            envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
-            harmonicity: 5.1,
-            modulationIndex: 32,
-            resonance: 4000,
-            octaves: 1.5
-        }).connect(limiterRef.current);
-        metalSynthRef.current.volume.value = -15;
+            envelope: { attack: 0.01, decay: 0.05, release: 0.05 },
+            harmonicity: 3.1,
+            modulationIndex: 10,
+            resonance: 2000,
+            octaves: 1
+        }).connect(limiterRef.current); // Connect to Limiter for clarity (bypass filter)
+        metalSynthRef.current.volume.value = volumes.metal ?? DEFAULT_VOLUMES.metal;
 
         return () => {
             if (synthRef.current) synthRef.current.dispose();
             if (padSynthRef.current) padSynthRef.current.dispose();
             if (drumSynthRef.current) drumSynthRef.current.dispose();
             if (metalSynthRef.current) metalSynthRef.current.dispose();
+            if (filterRef.current) filterRef.current.dispose();
+
+            // FIX 2 (Cleanup): Dispose the pad filter
+            if (padFilterRef.current) padFilterRef.current.dispose();
+
+            if (pianoReverbRef.current) pianoReverbRef.current.dispose();
+            if (padReverbRef.current) padReverbRef.current.dispose();
             if (limiterRef.current) limiterRef.current.dispose();
             if (gainRef.current) gainRef.current.dispose();
             if (recorderRef.current) recorderRef.current.dispose();
         };
-    }, [username]);
+    }, [username, data]); // Re-run when data loads to switch instrument
 
-    // Update gain when volume changes
+    // Update separate volumes live
     useEffect(() => {
-        if (gainRef.current) {
-            gainRef.current.gain.value = volume / 100;
-        }
-    }, [volume]);
+        if (synthRef.current) synthRef.current.volume.rampTo(volumes.melody ?? DEFAULT_VOLUMES.melody, 0.1);
+        if (padSynthRef.current) padSynthRef.current.volume.rampTo(volumes.pad ?? DEFAULT_VOLUMES.pad, 0.1);
+        if (drumSynthRef.current) drumSynthRef.current.volume.rampTo(volumes.drum ?? DEFAULT_VOLUMES.drum, 0.1);
+        if (metalSynthRef.current) metalSynthRef.current.volume.rampTo(volumes.metal ?? DEFAULT_VOLUMES.metal, 0.1);
+    }, [volumes]);
 
     // Play a melody note
     const playNote = useCallback((scaleType, dayIndex, level, time) => {
@@ -124,7 +187,7 @@ export function useAudioEngine(username, volume) {
 
     // Play kick drum
     const playKick = useCallback((time) => {
-        drumSynthRef.current?.triggerAttackRelease("C1", "8n", time);
+        drumSynthRef.current?.triggerAttackRelease("C2", "8n", time);
     }, []);
 
     // Play snare

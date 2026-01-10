@@ -31,7 +31,7 @@ const GitSequencer = () => {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [volume, setVolume] = useState(75);
+    const [volumes, setVolumes] = useState({ melody: -10, pad: -20, drum: -4, metal: -14 });
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
@@ -43,7 +43,7 @@ const GitSequencer = () => {
     const [platform, setPlatform] = useState('github');
 
     // Custom hooks for audio
-    const audioEngine = useAudioEngine(username, volume);
+    const audioEngine = useAudioEngine(username, volumes, data);
     const sequencer = useSequencer(audioEngine);
 
     const {
@@ -583,6 +583,8 @@ const GitSequencer = () => {
         link.click();
     };
 
+
+
     // Load user from URL on mount
     useEffect(() => {
         // Support both /username and ?user=username formats
@@ -839,6 +841,8 @@ const GitSequencer = () => {
                     <span>Copy</span>
                 </button>
             </div>
+
+
 
             {/* Footer hint */}
             <div className="footer-hint">
