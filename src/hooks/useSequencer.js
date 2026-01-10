@@ -1,27 +1,37 @@
 import { useState, useRef, useCallback } from 'react';
 import * as Tone from 'tone';
 
-export function useSequencer(audioEngine) {
+// Helper to get signature scale based on username hash
+// Helper to get a random scale from the safe list
+const getRandomScale = () => {
+    const SCALES = ['pentatonic', 'lydian', 'dorian', 'phrygianDom', 'mixolydian', 'harmonicMinor', 'hirajoshi'];
+    return SCALES[Math.floor(Math.random() * SCALES.length)];
+};
+
+export function useSequencer(audioEngine, username) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [activeCol, setActiveCol] = useState(-1);
     const [activeNotes, setActiveNotes] = useState([]);
-    const [scaleType, setScaleType] = useState('pentatonic');
+
+    // Initial scale is random for every session/refresh
+    const signatureScaleRef = useRef(getRandomScale());
+    const signatureScale = signatureScaleRef.current;
+
+    const [scaleType, setScaleType] = useState(signatureScale);
     const [currentPattern, setCurrentPattern] = useState('Zen');
     const [bpm, setBpm] = useState(80);
     const [autoScale, setAutoScale] = useState(true);
 
-    const scaleTypeRef = useRef('pentatonic');
+    const scaleTypeRef = useRef(signatureScale);
     const autoScaleRef = useRef(true);
     const sequenceRef = useRef(null);
 
     const { playNote, playChord, playKick, playSnare, playHiHat } = audioEngine;
 
     // Determine scale based on activity level
+    // FIXED: Use Single Signature Scale for consistent musical journey per user
     const getScaleForActivity = (activity) => {
-        if (activity > 50) return { scale: 'phrygianDom', pattern: 'Intense (Extreme)' };
-        if (activity > 30) return { scale: 'dorian', pattern: 'Focus (High)' };
-        if (activity > 10) return { scale: 'lydian', pattern: 'Dreamy (Med)' };
-        return { scale: 'pentatonic', pattern: 'Zen (Low)' };
+        return { scale: scaleTypeRef.current, pattern: 'Flow' };
     };
 
     // Calculate block activity (sum of levels in a 4-week block)

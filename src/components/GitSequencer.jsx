@@ -44,7 +44,7 @@ const GitSequencer = () => {
 
     // Custom hooks for audio
     const audioEngine = useAudioEngine(username, volumes, data);
-    const sequencer = useSequencer(audioEngine);
+    const sequencer = useSequencer(audioEngine, username);
 
     const {
         isPlaying,

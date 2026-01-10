@@ -3,16 +3,28 @@ import * as Tone from 'tone';
 
 const SCALES = {
     pentatonic: ['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5'],
-    lydian: ['C4', 'D4', 'E4', 'F#4', 'G4', 'A4', 'B4'],
-    dorian: ['C4', 'D4', 'Eb4', 'F4', 'G4', 'A4', 'Bb4'],
-    phrygianDom: ['C4', 'Db4', 'E4', 'F4', 'G4', 'Ab4', 'Bb4']
+    // Lydian: Bright/Dreamy. Removed the 7th(B) in low oct to avoid clutter, kept the #4(F#) for flavor.
+    lydian: ['C4', 'E4', 'F#4', 'G4', 'A4', 'C5', 'E5'],
+    // Dorian: Soulful/Jazzy. Removed the 2nd(D) to focus on the minor 3rd and major 6th.
+    dorian: ['C4', 'Eb4', 'F4', 'G4', 'A4', 'Bb4', 'C5'],
+    // Phrygian Dom: Exotic. Removed b2(Db) and b6(Ab) from melody to prevent harsh clashes.
+    phrygianDom: ['C4', 'E4', 'F4', 'G4', 'Bb4', 'C5', 'E5'],
+    // Mixolydian: Uplifting/Psychedelic (Jerry Garcia style). Major 3rd + Flat 7.
+    mixolydian: ['C4', 'E4', 'G4', 'A4', 'Bb4', 'C5', 'D5'],
+    // Harmonic Minor: Neoclassical/Dramatic. Spooky vibe with the raised 7th (B).
+    harmonicMinor: ['C4', 'Eb4', 'G4', 'Ab4', 'B4', 'C5', 'Eb5'],
+    // Hirajoshi: Japanese Pentatonic. Dark, ambient, and introspective.
+    hirajoshi: ['C4', 'Db4', 'F4', 'G4', 'Ab4', 'C5', 'Db5']
 };
 
 const CHORD_ROOTS = {
     pentatonic: ['C3', 'D3', 'E3', 'G3', 'A3', 'C4', 'D4'],
-    lydian: ['C3', 'D3', 'E3', 'F#3', 'G3', 'A3', 'B3'],
-    dorian: ['C3', 'D3', 'Eb3', 'F3', 'G3', 'A3', 'Bb3'],
-    phrygianDom: ['C3', 'Db3', 'E3', 'F3', 'G3', 'Ab3', 'Bb3']
+    lydian: ['C3', 'E3', 'G3', 'A3', 'C4', 'E4', 'F#4'],
+    dorian: ['C3', 'Eb3', 'G3', 'A3', 'Bb3', 'C4', 'F4'],
+    phrygianDom: ['C3', 'E3', 'G3', 'Bb3', 'C4', 'E4', 'F4'],
+    mixolydian: ['C3', 'E3', 'G3', 'A3', 'Bb3', 'C4', 'D4'],
+    harmonicMinor: ['C3', 'Eb3', 'G3', 'Ab3', 'B3', 'C4', 'Eb4'],
+    hirajoshi: ['C3', 'Db3', 'F3', 'G3', 'Ab3', 'C4', 'Db4']
 };
 
 const VELOCITIES = [0, 0.5, 0.6, 0.7, 0.8];
