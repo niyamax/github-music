@@ -142,7 +142,7 @@ export function useSequencer(audioEngine) {
         // Adaptive BPM
         let totalContribs = 0;
         data.weeks.forEach(w => w.days.forEach(d => totalContribs += d.count));
-        const calculatedBpm = Math.min(180, Math.max(80, 80 + Math.floor(totalContribs / 50)));
+        const calculatedBpm = Math.min(110, Math.max(80, 80 + Math.floor(totalContribs / 50)));
 
         Tone.Transport.bpm.value = calculatedBpm;
         setBpm(calculatedBpm);
