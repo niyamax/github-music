@@ -270,7 +270,7 @@
     margin-top: 0.25rem;
     margin-left: 1rem;
     font-size: 0.9rem;
-    min-height: 1.4em;
+    min-height: 3rem;
 }
 
 .status-msg .dim {
@@ -278,7 +278,7 @@
 }
 
 .status-msg .hint-tip {
-    color: var(--text-dim);
+    color: #555555;
     font-size: 0.85rem;
     line-height: 1.5rem;
     padding-left: 0.5rem;
@@ -502,7 +502,11 @@
         overflow-x: auto;
         max-width: 100%;
         scrollbar-width: thin;
-        scrollbar-color: var(--accent) var(--bg);
+        scrollbar-color: #555555 var(--bg);
+    }
+
+    .graph-section.no-data {
+        overflow-x: hidden;
     }
 
     .graph-section::-webkit-scrollbar {
@@ -514,7 +518,7 @@
     }
 
     .graph-section::-webkit-scrollbar-thumb {
-        background-color: var(--accent);
+        background-color: #888888;
         border-radius: 3px;
     }
 

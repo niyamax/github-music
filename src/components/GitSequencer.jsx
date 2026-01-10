@@ -324,7 +324,7 @@ const GitSequencer = () => {
         const titleFont = `bold ${legendTitleSize}px monospace`;
         const versionFont = `${legendVersionSize}px monospace`;
         ctx.font = titleFont;
-        const titleText = 'GitHub Music';
+        const titleText = 'GitMusic';
         const titleWidth = ctx.measureText(titleText).width;
         ctx.font = versionFont;
         const versionText = 'v1.0.0';
@@ -735,8 +735,8 @@ const GitSequencer = () => {
                         <span className="success">✓ loaded {data.weeks.length} weeks</span>
                     ) : (
                         <>
-                            <div className="hint-tip">└─ enter git username (loads one with higher git contributions)</div>
-                            <div className="hint-tip">└─ use -p github|gitlab to choose platform</div>
+                            <div className="hint-tip">└─ default: most active contributions</div>
+                            <div className="hint-tip">└─ use -p github|gitlab to force platform</div>
                         </>
                     )
                     }
@@ -744,7 +744,7 @@ const GitSequencer = () => {
             </div>
 
             {/* Contribution Graph */}
-            <div className="graph-section" ref={graphSectionRef}>
+            <div className={`graph-section ${!data || isAnimating || error ? 'no-data' : ''}`} ref={graphSectionRef}>
                 {data && !isAnimating && !error ? (
                     <div className="graph-grid">
                         {data.weeks.map((week, wIndex) => (

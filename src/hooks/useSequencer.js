@@ -60,6 +60,7 @@ export function useSequencer(audioEngine) {
         if (!data) return;
 
         await Tone.start();
+        Tone.context.lookAhead = 0.1; // Increase lookahead for mobile stability
 
         const cols = data.weeks.map((_, i) => i);
 
@@ -104,7 +105,8 @@ export function useSequencer(audioEngine) {
             let weekDensity = 0;
             week.days.forEach(d => weekDensity += d.level);
 
-            if (weekDensity > 10) {
+            // Only sample if extremely dense (prevent "wall of sound" while keeping most notes)
+            if (weekDensity > 25) {
                 // Busy week: random sampling
                 const activeDays = week.days
                     .map((d, i) => ({ day: d, index: i }))
@@ -142,7 +144,7 @@ export function useSequencer(audioEngine) {
                     setActiveNotes(playingIndices);
                 }, time);
             }
-        }, cols, "8n").start(0);
+        }, cols, "8n").start("0:0:0");
 
         // Adaptive BPM
         let totalContribs = 0;
@@ -159,7 +161,7 @@ export function useSequencer(audioEngine) {
     const stop = useCallback(() => {
         Tone.Transport.stop();
         Tone.Transport.cancel(); // Clear all scheduled events
-        Tone.Transport.position = 0; // Reset position
+        Tone.Transport.position = "0:0:0"; // Reset position safely
         if (sequenceRef.current) {
             sequenceRef.current.stop();
             sequenceRef.current.dispose();
