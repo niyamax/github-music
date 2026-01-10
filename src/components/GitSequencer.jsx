@@ -553,8 +553,7 @@ const GitSequencer = () => {
 
     // URL to clipboard
     const handleShare = () => {
-        const platformParam = platform === 'gitlab' ? '?platform=gitlab' : '';
-        const shareUrl = `${window.location.origin}/${encodeURIComponent(username)}${platformParam}`;
+        const shareUrl = `${window.location.origin}/${encodeURIComponent(username)}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             setShowToast(true);
         }).catch(() => {
@@ -602,7 +601,7 @@ const GitSequencer = () => {
         const userParam = pathUser || queryUser;
         if (userParam) {
             setUsername(userParam);
-            loadData(userParam, queryPlatform || 'github');
+            loadData(userParam, queryPlatform);
         }
     }, []);
 
