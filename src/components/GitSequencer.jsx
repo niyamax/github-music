@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, memo, useRef, forwardRef } from 'react';
 import * as Tone from 'tone';
-import { fetchContributions } from '../services/github';
+import { fetchContributions, fetchGitHubContributions, fetchGitLabContributions } from '../services/contributions';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useSequencer } from '../hooks/useSequencer';
 import './GitSequencer.css';
@@ -31,7 +31,6 @@ const GitSequencer = () => {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [isMock, setIsMock] = useState(false);
     const [volume, setVolume] = useState(75);
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef(null);
@@ -41,6 +40,7 @@ const GitSequencer = () => {
     const measureRef = useRef(null);
     const [cursorPos, setCursorPos] = useState(0);
     const [showCursor, setShowCursor] = useState(true);
+    const [platform, setPlatform] = useState('github');
 
     // Custom hooks for audio
     const audioEngine = useAudioEngine(username, volume);
@@ -80,30 +80,104 @@ const GitSequencer = () => {
         }
     }, [showToast]);
 
-    const loadData = async (user) => {
+    const loadData = async (user, format = null) => {
         setIsLoading(true);
         setIsAnimating(true);
         setError(null);
 
-        // Start animation timer (3 waves x 2s = 6 seconds)
+        // Start animation timer
         const animationTimer = new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Fetch data
-        const result = await fetchContributions(user);
-        setData(result.data);
-        setError(result.error);
-        setIsMock(result.isMock);
+        let resultData = null;
+        let resultError = null;
+        let finalPlatform = 'github';
+
+        // Check if explicit platform is requested
+        if (format) {
+            finalPlatform = format;
+            const result = await fetchContributions(user, format);
+            resultData = result.data;
+            resultError = result.error;
+        } else {
+            // AUTO DETECT: Fetch both and pick winner
+            try {
+                const [ghRes, glRes] = await Promise.all([
+                    fetchGitHubContributions(user),
+                    fetchGitLabContributions(user)
+                ]);
+
+                const getCount = (res) => {
+                    if (!res || !res.data || res.error) return -1;
+                    return res.data.weeks.reduce((acc, w) =>
+                        acc + w.days.reduce((da, d) => da + d.count, 0), 0);
+                };
+
+                const ghCount = getCount(ghRes);
+                const glCount = getCount(glRes);
+
+                if (ghCount === -1 && glCount === -1) {
+                    // Both failed
+                    resultError = ghRes.error || glRes.error || "User not found on any platform";
+                } else if (glCount > ghCount) {
+                    finalPlatform = 'gitlab';
+                    resultData = glRes.data;
+                    resultError = glRes.error;
+                } else {
+                    // GitHub wins (default if equal or gh exists and gl doesn't)
+                    finalPlatform = 'github';
+                    resultData = ghRes.data;
+                    resultError = ghRes.error;
+                }
+            } catch (err) {
+                console.error("Auto-detect failed", err);
+                resultError = "Failed to load data";
+            }
+        }
+
+        setData(resultData);
+        setError(resultError);
+        setPlatform(finalPlatform);
         setIsLoading(false);
 
-        // Wait for animation to complete
+        // Wait for animation
         await animationTimer;
         setIsAnimating(false);
     };
 
     const handleSearch = (e) => {
         e.preventDefault();
+
+        const rawInput = username.trim();
+        if (!rawInput) return;
+
+        let targetUser = rawInput;
+        let explicitPlatform = null;
+
+        // Parse command line arguments
+        const args = rawInput.split(/\s+/);
+        const pIndex = args.findIndex(arg => arg === '-p' || arg === '--platform');
+
+        if (pIndex !== -1 && pIndex + 1 < args.length) {
+            const platformArg = args[pIndex + 1].toLowerCase();
+            if (['github', 'gitlab'].includes(platformArg)) {
+                explicitPlatform = platformArg;
+                // Remove flag from user string
+                const newArgs = args.filter((_, i) => i !== pIndex && i !== pIndex + 1);
+                targetUser = newArgs.join(' ');
+            }
+        }
+
+        if (!targetUser || targetUser.length < 2) return;
+
+        inputRef.current?.blur();
         if (isPlaying) stop();
-        loadData(username);
+
+        // If we extracted a clean username, update input to match
+        if (targetUser !== username) {
+            setUsername(targetUser);
+        }
+
+        loadData(targetUser, explicitPlatform);
     };
 
     const handleScaleChange = (e) => {
@@ -140,6 +214,9 @@ const GitSequencer = () => {
     const handleTogglePlay = useCallback(() => {
         toggle(data);
     }, [toggle, data]);
+
+    // Check if there are no contributions
+    const hasNoContributions = data && data.weeks.every(w => w.days.every(d => d.level === 0));
 
     // Draw to hidden canvas for video export (exact mobile layout, HQ 1080x1920)
     useEffect(() => {
@@ -476,7 +553,8 @@ const GitSequencer = () => {
 
     // URL to clipboard
     const handleShare = () => {
-        const shareUrl = `${window.location.origin}/${encodeURIComponent(username)}`;
+        const platformParam = platform === 'gitlab' ? '?platform=gitlab' : '';
+        const shareUrl = `${window.location.origin}/${encodeURIComponent(username)}${platformParam}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             setShowToast(true);
         }).catch(() => {
@@ -512,11 +590,17 @@ const GitSequencer = () => {
         const pathUser = pathname.split('/').filter(Boolean).pop();
         const params = new URLSearchParams(window.location.search);
         const queryUser = params.get('user');
+        const queryPlatform = params.get('platform');
+
+        // Set platform if specified in URL
+        if (queryPlatform === 'gitlab') {
+            setPlatform('gitlab');
+        }
 
         const userParam = pathUser || queryUser;
         if (userParam) {
             setUsername(userParam);
-            loadData(userParam);
+            loadData(userParam, queryPlatform || 'github');
         }
     }, []);
 
@@ -576,7 +660,7 @@ const GitSequencer = () => {
             {/* Simple Fieldset Header */}
             <fieldset className="header-fieldset">
                 <legend className="header-legend">
-                    <span className="header-title">GitHub Music</span> <span className="header-version">v1.0.0</span>
+                    <span className="header-title">GitMusic</span> <span className="header-version">v1.0.0</span>
                 </legend>
 
                 <div className="header-content">
@@ -591,7 +675,7 @@ const GitSequencer = () => {
 
                     <div className="header-right">
                         <div className="header-section">
-                            <div className="header-label">Turn your GitHub contributions into music</div>
+                            <div className="header-label">Turn your GitHub/GitLab contributions into music</div>
                         </div>
                     </div>
                 </div>
@@ -599,9 +683,10 @@ const GitSequencer = () => {
 
             {/* Command Input */}
             <div className="command-section">
+                {/* Command Line */}
                 <form onSubmit={handleSearch} className="command-line">
                     <span className="prompt">$</span>
-                    <span className="cmd">git-music fetch</span>
+                    <span className="cmd">gitmusic fetch</span>
                     <div className="input-wrapper">
                         <span ref={measureRef} className="input-measure" aria-hidden="true" />
                         {showCursor && (
@@ -624,15 +709,8 @@ const GitSequencer = () => {
                             onSelect={updateCursorPos}
                             onFocus={() => setShowCursor(true)}
                             onBlur={() => {
-                                // Hide cursor only if there's content
-                                if (username) {
-                                    setShowCursor(false);
-                                }
-                                // Trigger load on blur
-                                if (username && username.length >= 2 && !isLoading) {
-                                    if (isPlaying) stop();
-                                    loadData(username);
-                                }
+                                // Hide cursor when not focused
+                                setShowCursor(false);
                             }}
                             placeholder="username"
                             disabled={isLoading}
@@ -651,11 +729,17 @@ const GitSequencer = () => {
                         <span className="dim">Loading...</span>
                     ) : error ? (
                         <span className="error">✗ {error}</span>
-                    ) : data && !isMock ? (
+                    ) : data && hasNoContributions ? (
+                        <span className="warning">⚠ no contributions found for this user</span>
+                    ) : data ? (
                         <span className="success">✓ loaded {data.weeks.length} weeks</span>
                     ) : (
-                        <span className="dim">Enter a GitHub username to load data ↑</span>
-                    )}
+                        <>
+                            <div className="hint-tip">└─ enter git username (loads one with higher git contributions)</div>
+                            <div className="hint-tip">└─ use -p github|gitlab to choose platform</div>
+                        </>
+                    )
+                    }
                 </div>
             </div>
 
@@ -701,7 +785,7 @@ const GitSequencer = () => {
                 <button
                     className={`ctrl-btn ${isPlaying && !isRecording ? 'active' : ''}`}
                     onClick={handleTogglePlay}
-                    disabled={!data || isAnimating || error || isRecording}
+                    disabled={!data || isAnimating || error || isRecording || hasNoContributions}
                 >
                     {isPlaying && !isRecording ? (
                         <>
@@ -723,7 +807,7 @@ const GitSequencer = () => {
                 <button
                     className={`ctrl-btn ${isRecording ? 'recording' : ''}`}
                     onClick={handleExport}
-                    disabled={!data || isAnimating || error}
+                    disabled={!data || isAnimating || error || hasNoContributions}
                 >
                     {isRecording ? (
                         <>
@@ -745,7 +829,7 @@ const GitSequencer = () => {
                 <button
                     className="ctrl-btn"
                     onClick={handleShare}
-                    disabled={!data || isAnimating || error}
+                    disabled={!data || isAnimating || error || hasNoContributions}
                     title="Copy link to clipboard"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

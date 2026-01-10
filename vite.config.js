@@ -5,4 +5,17 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  server: {
+    proxy: {
+      '/api/gitlab': {
+        target: 'https://gitlab.com',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const url = new URL(path, 'http://localhost');
+          const username = url.searchParams.get('username');
+          return `/users/${username}/calendar.json`;
+        }
+      }
+    }
+  }
 })

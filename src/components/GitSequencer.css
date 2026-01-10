@@ -100,6 +100,30 @@
     font-style: italic;
 }
 
+/* Platform Selection - Terminal Style */
+.platform-options {
+    margin-left: 0.5rem;
+}
+
+.platform-opt {
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.platform-opt:hover {
+    color: var(--text);
+}
+
+.platform-opt.active {
+    color: var(--success);
+}
+
+.platform-sep {
+    color: var(--text-dim);
+    margin: 0 0.25rem;
+}
+
 /* Mobile Header */
 @media (max-width: 600px) {
     .header-fieldset {
@@ -214,8 +238,15 @@
 
 
 @keyframes blink-cursor {
-    0%, 100% { opacity: 0.85; }
-    50% { opacity: 0; }
+
+    0%,
+    100% {
+        opacity: 0.85;
+    }
+
+    50% {
+        opacity: 0;
+    }
 }
 
 .command-line input {
@@ -236,8 +267,8 @@
 
 /* Status Messages */
 .status-msg {
-    margin-top: 0.5rem;
-    margin-left: 1.5rem;
+    margin-top: 0.25rem;
+    margin-left: 1rem;
     font-size: 0.9rem;
     min-height: 1.4em;
 }
@@ -246,12 +277,23 @@
     color: var(--text-dim);
 }
 
+.status-msg .hint-tip {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    line-height: 1.5rem;
+    padding-left: 0.5rem;
+}
+
 .status-msg .success {
     color: var(--success);
 }
 
 .status-msg .error {
     color: var(--error);
+}
+
+.status-msg .warning {
+    color: var(--accent-yellow);
 }
 
 /* ===== GRAPH SECTION ===== */
