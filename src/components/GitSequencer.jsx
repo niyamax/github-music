@@ -281,7 +281,7 @@ const GitSequencer = () => {
         const asciiLineHeight = asciiFontSize * 1.2;
         const asciiHeight = 4 * asciiLineHeight;
         const subtitleLineHeight = subtitleFontSize * 1.3;
-        const subtitleLines = 2;  // "Turn your GitHub contributions" + "into music"
+        const subtitleLines = 2;  // "Turn your GitHub/GitLab contributions" + "into music"
         const subtitleHeight = subtitleLines * subtitleLineHeight;
         const fieldsetContentHeight = asciiHeight + headerContentGap + subtitleHeight;
         const fieldsetHeight = fieldsetPaddingY * 2 + fieldsetContentHeight;
@@ -377,7 +377,7 @@ const GitSequencer = () => {
         ctx.font = `bold ${subtitleFontSize}px monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('Turn your GitHub contributions', fieldsetCenterX, subtitleY);
+        ctx.fillText('Turn your GitHub/GitLab contributions', fieldsetCenterX, subtitleY);
         ctx.fillText('into music', fieldsetCenterX, subtitleY + subtitleLineHeight);
         ctx.textBaseline = 'alphabetic';
 
@@ -392,10 +392,10 @@ const GitSequencer = () => {
 
         ctx.fillStyle = colors.accentYellow;
         const promptWidth = ctx.measureText('$ ').width;
-        ctx.fillText('git-music fetch', cmdX + promptWidth, currentY);
+        ctx.fillText('gitmusic fetch', cmdX + promptWidth, currentY);
 
         ctx.fillStyle = colors.textBright;
-        const cmdWidth = ctx.measureText('git-music fetch ').width;
+        const cmdWidth = ctx.measureText('gitmusic fetch ').width;
         ctx.fillText(username, cmdX + promptWidth + cmdWidth, currentY);
 
         currentY += commandLineHeight + statusMarginTop;
