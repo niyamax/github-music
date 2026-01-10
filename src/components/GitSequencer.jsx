@@ -732,6 +732,10 @@ const GitSequencer = () => {
                             onBlur={() => {
                                 // Hide cursor when not focused
                                 setShowCursor(false);
+                                // Auto-load on click outside if valid
+                                if (username.trim() && !isLoading) {
+                                    handleSearch({ preventDefault: () => { } });
+                                }
                             }}
                             placeholder="username"
                             disabled={isLoading}
