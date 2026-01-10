@@ -117,7 +117,7 @@ const GitSequencer = () => {
 
                 if (ghCount === -1 && glCount === -1) {
                     // Both failed
-                    resultError = ghRes.error || glRes.error || "User not found on any platform";
+                    resultError = `User "${user}" not found on GitHub or GitLab`;
                 } else if (glCount > ghCount) {
                     finalPlatform = 'gitlab';
                     resultData = glRes.data;
