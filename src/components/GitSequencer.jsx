@@ -713,7 +713,7 @@ const GitSequencer = () => {
                         {showCursor && (
                             <span
                                 className="terminal-cursor"
-                                style={{ left: `calc(0.5rem + ${getCursorOffset()}px)` }}
+                                style={{ left: `${getCursorOffset()}px` }}
                             />
                         )}
                         <input

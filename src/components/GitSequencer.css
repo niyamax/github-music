@@ -258,7 +258,7 @@
     font-size: inherit;
     outline: none;
     caret-color: transparent;
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.5rem 0.25rem 0;
 }
 
 .command-line input::placeholder {
@@ -593,6 +593,7 @@
         height: 8px;
     }
 }
+
 /* Mixer Controls */
 .mixer-controls {
     display: flex;
